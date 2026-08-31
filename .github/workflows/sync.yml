@@ -34,6 +34,7 @@ jobs:
       - name: Run sync script
         env:
           CHEQROOM_API_KEY: ${{ secrets.CHEQROOM_API_KEY }}
+          CHEQROOM_USER_ID: ${{ secrets.CHEQROOM_USER_ID }}
         run: python sync_cheqroom.py
 
       - name: Prepare Pages upload
