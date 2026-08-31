@@ -91,6 +91,21 @@ def fetch_reservations(api_key):
     return items
 
 
+def short_name(full_name):
+    """
+    "John Smith" -> "John S."   |   "John" -> "John"   |  "" -> "Unknown"
+    This file gets published on a public URL, so we deliberately don't write
+    full names — first name + last initial is enough for staff to match an
+    order at the counter without exposing a full name to the open internet.
+    """
+    if not full_name:
+        return "Unknown"
+    parts = full_name.strip().split()
+    if len(parts) == 1:
+        return parts[0]
+    return f"{parts[0]} {parts[-1][0]}."
+
+
 def normalize(raw_items):
     """
     Maps Cheqroom's fields into the flat shape the board expects. Field names
@@ -99,10 +114,11 @@ def normalize(raw_items):
     """
     normalized = []
     for r in raw_items:
+        full_name = r.get("user", {}).get("name") or r.get("customerName") or r.get("name") or ""
         normalized.append(
             {
                 "cheqroomId": r.get("_id") or r.get("id"),
-                "name": r.get("user", {}).get("name") or r.get("customerName") or r.get("name") or "Unknown",
+                "name": short_name(full_name),
                 "date": (r.get("startDate") or r.get("start_date") or "")[:10],
                 "time": r.get("startDate", "")[11:16] if r.get("startDate") else "",
                 "items": ", ".join(
