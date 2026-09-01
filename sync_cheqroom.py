@@ -21,7 +21,7 @@ CHEQROOM_BASE_URL = "https://app.cheqroom.com/api/v2_5"
 
 # Fields to pull back for each reservation. See Cheqroom's docs for the full
 # list of what's available — trimmed here to just what the board displays.
-RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary"
+RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary,location.name"
 
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "docs", "orders.json")
 
@@ -42,10 +42,10 @@ def get_credentials():
 
 def fetch_reservations(api_key, user_id):
     """
-    Searches reservations whose start date falls within today through 6 days
-    from now (this week's window). Returns the raw list from Cheqroom, or
-    exits with a descriptive error so the GitHub Actions log makes the
-    failure obvious.
+    Searches reservations whose start date falls within today through 41 days
+    from now (a 6-week window). Pages through results 100 at a time so we
+    never silently drop reservations during a busy stretch. Exits with a
+    descriptive error so the GitHub Actions log makes any failure obvious.
     """
     url = f"{CHEQROOM_BASE_URL}/{user_id}/null/jwt/reservations/search"
 
@@ -56,54 +56,76 @@ def fetch_reservations(api_key, user_id):
     }
 
     today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    week_end = today + timedelta(days=7)
+    week_end = today + timedelta(days=42)  # 6 weeks ahead
 
-    data = {
-        "_fields": RESERVATION_FIELDS,
-        "_sort": "fromDate",
-        "_listname": "all",
-        "_limit": 100,
-        "_skip": 0,
-        "fromDate__gte": today.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "fromDate__lte": week_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-    }
+    page_size = 100
+    skip = 0
+    all_items = []
 
-    print(f"Requesting: POST {url}")
-    print(f"Body: {data}")
+    while True:
+        data = {
+            "_fields": RESERVATION_FIELDS,
+            "_sort": "fromDate",
+            "_listname": "all",
+            "_limit": page_size,
+            "_skip": skip,
+            "fromDate__gte": today.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "fromDate__lte": week_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        }
 
-    resp = requests.post(url, headers=headers, data=data, timeout=30)
+        print(f"Requesting: POST {url} (skip={skip})")
 
-    print(f"Response status: {resp.status_code}")
-    if resp.status_code != 200:
-        print("Response body (first 2000 chars):", file=sys.stderr)
-        print(resp.text[:2000], file=sys.stderr)
-        print(
-            "\nCheck: is CHEQROOM_USER_ID correct? Is the API key still valid? "
-            "Paste this log back if you're not sure what to fix next.",
-            file=sys.stderr,
-        )
-        sys.exit(1)
+        resp = requests.post(url, headers=headers, data=data, timeout=30)
 
-    payload = resp.json()
-    print(f"Top-level response keys: {list(payload.keys()) if isinstance(payload, dict) else 'response is a bare list'}")
-    print(f"Raw response (first 1000 chars): {json.dumps(payload)[:1000]}")
+        print(f"Response status: {resp.status_code}")
+        if resp.status_code != 200:
+            print("Response body (first 2000 chars):", file=sys.stderr)
+            print(resp.text[:2000], file=sys.stderr)
+            print(
+                "\nCheck: is CHEQROOM_USER_ID correct? Is the API key still valid? "
+                "Paste this log back if you're not sure what to fix next.",
+                file=sys.stderr,
+            )
+            sys.exit(1)
 
-    # Cheqroom's search endpoints commonly wrap results, e.g. {"results": [...]}
-    # or {"docs": [...]}. Handle a few shapes plus a bare list, so we don't
-    # crash on a shape we haven't seen a real example of yet.
-    if isinstance(payload, dict):
-        items = (
-            payload.get("results")
-            or payload.get("docs")
-            or payload.get("items")
-            or payload.get("data")
-            or []
-        )
-    else:
-        items = payload
+        payload = resp.json()
+        if skip == 0:
+            print(f"Top-level response keys: {list(payload.keys()) if isinstance(payload, dict) else 'response is a bare list'}")
 
-    print(f"Fetched {len(items)} reservation(s).")
-    return items
+        if isinstance(payload, dict):
+            page_items = (
+                payload.get("results")
+                or payload.get("docs")
+                or payload.get("items")
+                or payload.get("data")
+                or []
+            )
+        else:
+            page_items = payload
+
+        all_items.extend(page_items)
+        print(f"Fetched {len(page_items)} on this page (total so far: {len(all_items)}).")
+
+        if len(page_items) < page_size:
+            break  # last page
+        skip += page_size
+
+    return all_items
+
+
+def format_time(hh_mm):
+    """
+    "14:00" -> "2:00 PM"   |   "09:05" -> "9:05 AM"   |   "" -> ""
+    Cheqroom returns 24-hour time; staff read 12-hour, so convert here once
+    rather than relying on the display page to do it.
+    """
+    if not hh_mm or ":" not in hh_mm:
+        return hh_mm
+    try:
+        dt = datetime.strptime(hh_mm, "%H:%M")
+        return dt.strftime("%I:%M %p").lstrip("0")
+    except ValueError:
+        return hh_mm
 
 
 def short_name(full_name):
@@ -134,8 +156,9 @@ def normalize(raw_items):
                 "cheqroomId": r.get("_id") or r.get("id"),
                 "name": short_name(full_name),
                 "date": from_date[:10],
-                "time": from_date[11:16] if len(from_date) >= 16 else "",
+                "time": format_time(from_date[11:16]) if len(from_date) >= 16 else "",
                 "items": r.get("itemSummary", ""),
+                "location": (r.get("location") or {}).get("name", ""),
                 "cheqroomStatus": r.get("status", "unknown"),
             }
         )
