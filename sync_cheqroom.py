@@ -106,12 +106,26 @@ RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary,lo
 ORDER_FIELDS = "status,number,started,due,customer.name,itemSummary,location.name"
 
 
-def within_window(from_date_str, days_ahead=56):
-    """Keep only reservations starting today through `days_ahead` days from now (8 weeks)."""
-    if not from_date_str:
+def relevant_date(item):
+    """
+    The date that actually matters for windowing/display purposes:
+    - Reservations: fromDate (when the pickup is scheduled)
+    - Orders (checkouts): due (when it needs to come back) — falling back to
+      started if due is missing, so we don't crash on an odd record. Using
+      "started" as the window basis for orders would wrongly filter out an
+      item checked out weeks ago that's still due back soon.
+    """
+    if item.get("_source") == "order":
+        return item.get("due") or item.get("started") or ""
+    return item.get("fromDate") or item.get("started") or ""
+
+
+def within_window(date_str, days_ahead=56):
+    """Keep only items whose relevant date falls today through `days_ahead` days from now (8 weeks)."""
+    if not date_str:
         return False
     try:
-        start = datetime.fromisoformat(from_date_str.replace("Z", "+00:00"))
+        start = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
     except ValueError:
         return False
     now = datetime.now(timezone.utc)
@@ -151,23 +165,26 @@ def short_name(full_name):
 def normalize(raw_items):
     """
     Maps Cheqroom's fields into the flat shape the board expects. Reservations
-    use "fromDate" for their start time; orders (check-outs) use "started" —
-    we accept either.
+    are shown on their pickup date (fromDate); orders (check-outs) are shown
+    on their due date, since that's the date that actually matters for an
+    active checkout.
     """
     normalized = []
     for r in raw_items:
         full_name = (r.get("customer") or {}).get("name", "")
-        start = r.get("fromDate") or r.get("started") or ""
+        date_str = relevant_date(r)
+        is_order = r.get("_source") == "order"
         normalized.append(
             {
                 "cheqroomId": r.get("_id") or r.get("id"),
                 "name": short_name(full_name),
-                "date": start[:10],
-                "time": format_time(start[11:16]) if len(start) >= 16 else "",
+                "date": date_str[:10],
+                "time": format_time(date_str[11:16]) if len(date_str) >= 16 else "",
                 "items": r.get("itemSummary", ""),
                 "location": (r.get("location") or {}).get("name", ""),
                 "cheqroomStatus": r.get("status", "unknown"),
                 "source": r.get("_source", "unknown"),
+                "action": "checkin" if is_order else "checkout",
             }
         )
     return normalized
@@ -188,14 +205,11 @@ def main():
 
     raw = reservations + orders
 
-    def start_of(item):
-        return item.get("fromDate") or item.get("started") or ""
-
-    windowed = [r for r in raw if within_window(start_of(r))]
+    windowed = [r for r in raw if within_window(relevant_date(r))]
     print(f"Combined items within the 8-week window: {len(windowed)}")
     for r in windowed:
         cust = (r.get("customer") or {}).get("name", "?")
-        print(f"  - [{r['_source']}] {cust} | start={start_of(r)} | status={r.get('status')}")
+        print(f"  - [{r['_source']}] {cust} | date={relevant_date(r)} | status={r.get('status')}")
 
     # Only statuses that actually matter for day-to-day workflow.
     ACTIVE_STATUSES = {"open"}
