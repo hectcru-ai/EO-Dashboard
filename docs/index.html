@@ -1,0 +1,405 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>EO Weekly Order Board</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F5F4F1;
+    --panel: #EFEDE7;
+    --card: #ffffff;
+    --ink: #1A1D21;
+    --muted: #8A8F98;
+    --line: #E7E5DF;
+    --accent: #B23A32;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: 'IBM Plex Sans', sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    padding: 20px 20px 60px;
+  }
+  h1, .display { font-family: 'Oswald', sans-serif; }
+  .header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
+  .kicker { font-family: 'Oswald', sans-serif; font-size: 12px; letter-spacing: 0.06em; color: var(--accent); font-weight: 600; }
+  h1 { font-weight: 600; font-size: 28px; margin: 2px 0 0; }
+  .initials-box { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); }
+  .chip { font-family: 'Oswald', sans-serif; background: var(--ink); color: var(--bg); border: none; border-radius: 4px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+  input#initialsInput { width: 60px; border: 1px solid #D3D1CB; border-radius: 4px; padding: 5px 8px; font-size: 13px; font-family: inherit; }
+  .btn { border: 1px solid #1A1D21; background: #1A1D21; color: #fff; border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; }
+  .sync-bar { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin-top: 14px; font-size: 12.5px; }
+  .sync-text { color: var(--muted); }
+  .sync-text.error { color: var(--accent); }
+  .refresh-btn { display: flex; align-items: center; gap: 6px; border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 5px 10px; font-size: 12px; cursor: pointer; color: #3D5A9E; font-weight: 600; }
+  .week-nav { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
+  .nav-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 6px 10px; cursor: pointer; }
+  .week-label { font-family: 'Oswald', sans-serif; font-size: 16px; font-weight: 600; min-width: 130px; }
+  .today-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 6px 10px; font-size: 12px; cursor: pointer; color: var(--muted); }
+  .legend { display: flex; flex-wrap: wrap; gap: 14px; padding: 10px 12px; background: var(--card); border: 1px solid var(--line); border-radius: 6px; margin-bottom: 16px; font-size: 12.5px; }
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .day-tabs { display: flex; gap: 6px; overflow-x: auto; margin-bottom: 12px; }
+  .day-tab { border: 1px solid #D3D1CB; background: #fff; border-radius: 20px; padding: 6px 14px; font-size: 13px; white-space: nowrap; cursor: pointer; font-family: 'Oswald', sans-serif; }
+  .day-tab.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
+  .day-col { background: var(--panel); border-radius: 8px; padding: 10px; min-height: 200px; flex: 1 1 220px; min-width: 220px; scroll-snap-align: start; }
+  .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #DCDAD2; }
+  .day-name { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 15px; }
+  .day-date { font-size: 11.5px; color: var(--muted); }
+  .day-count { font-family: 'Oswald', sans-serif; font-size: 12px; color: var(--muted); background: #fff; border-radius: 10px; padding: 2px 8px; border: 1px solid #DCDAD2; }
+  .card-stack { display: flex; flex-direction: column; gap: 8px; }
+  .empty-day { font-size: 12.5px; color: #A6A9AC; font-style: italic; padding: 10px 2px; }
+  .card { background: var(--card); border-radius: 5px; border-left: 4px solid; padding: 9px 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
+  .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
+  .card-name { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 600; }
+  .cheqroom-tag { font-size: 10px; color: var(--muted); background: #F0EFEC; border: 1px solid #E2E0DA; border-radius: 3px; padding: 1px 5px; white-space: nowrap; font-weight: 600; }
+  .card-meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #5B6470; margin-top: 4px; }
+  .card-note { font-size: 12px; color: var(--accent); margin-top: 5px; background: #FBEAE8; border-radius: 4px; padding: 4px 6px; }
+  select.status-select { width: 100%; margin-top: 8px; border: none; border-radius: 4px; padding: 6px 8px; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer; }
+  .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; font-size: 10.5px; color: #A6A9AC; }
+  .edit-link { border: none; background: none; color: #3D5A9E; cursor: pointer; font-size: 11.5px; padding: 0; font-weight: 600; }
+  .modal-overlay { position: fixed; inset: 0; background: rgba(26,29,33,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: #fff; border-radius: 8px; padding: 20px; width: 100%; max-width: 380px; }
+  .modal-title { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 18px; }
+  .modal-sub { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
+  textarea#noteInput { width: 100%; min-height: 70px; border: 1px solid #D3D1CB; border-radius: 5px; padding: 8px 9px; font-size: 13.5px; font-family: inherit; resize: vertical; }
+  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
+  .cancel-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 5px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
+  .save-btn { border: none; background: var(--ink); color: #fff; border-radius: 5px; padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
+  @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+  .spinning { animation: spin 1s linear infinite; }
+</style>
+</head>
+<body>
+
+  <div class="header">
+    <div>
+      <div class="kicker">Equipment Office</div>
+      <h1>Weekly Order Board</h1>
+    </div>
+    <div class="initials-box">
+      Signed in as
+      <span id="initialsDisplay"></span>
+    </div>
+  </div>
+
+  <div class="sync-bar">
+    <span id="syncText" class="sync-text">Loading…</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="fetchFeed()">
+      <span id="refreshIcon">⟳</span> Refresh now
+    </button>
+  </div>
+
+  <div class="week-nav">
+    <button class="nav-btn" onclick="changeWeek(-7)">‹</button>
+    <div class="week-label" id="weekLabel"></div>
+    <button class="nav-btn" onclick="changeWeek(7)">›</button>
+    <button class="today-btn" onclick="goToday()">This week</button>
+  </div>
+
+  <div class="legend" id="legend"></div>
+  <div class="day-tabs" id="dayTabs"></div>
+  <div class="board" id="board"></div>
+
+  <div class="modal-overlay" id="noteModal">
+    <div class="modal">
+      <div class="modal-title" id="noteModalName"></div>
+      <div class="modal-sub" id="noteModalMeta"></div>
+      <textarea id="noteInput" placeholder="Optional"></textarea>
+      <div class="modal-footer">
+        <button class="cancel-btn" onclick="closeNoteModal()">Cancel</button>
+        <button class="save-btn" onclick="saveNote()">Save</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+// =============================================================================
+// CONFIG — fill these in after setup
+// =============================================================================
+const ORDERS_FEED_URL = "./orders.json"; // same-origin, no CORS issue
+const FIREBASE_DB_URL = "https://eo-dashboard-dc334-default-rtdb.firebaseio.com/"; // e.g. https://your-project-default-rtdb.firebaseio.com
+
+// =============================================================================
+// Status model
+// =============================================================================
+const STATUSES = [
+  { id: "pending",  label: "Pending approval", color: "#B8862E", bg: "#FBF2E1" },
+  { id: "approved", label: "Approved",         color: "#3D5A9E", bg: "#EBEFF9" },
+  { id: "building", label: "Building",         color: "#7A4FA6", bg: "#F1E9F6" },
+  { id: "built",    label: "Built — ready",    color: "#1E7A75", bg: "#E4F3F1" },
+  { id: "out",      label: "Checked out",      color: "#5B6470", bg: "#EAECEE" },
+  { id: "in",       label: "Checked in",       color: "#357A3E", bg: "#E7F3E8" },
+  { id: "flagged",  label: "Flagged / issue",  color: "#B23A32", bg: "#FBEAE8" },
+];
+const statusById = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
+const CHEQROOM_STATUS_LABEL = {
+  creating: "Creating", open: "Open", closed: "Closed",
+  closed_manually: "Closed (manual)", cancelled: "Cancelled", archived: "Archived",
+};
+const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri"];
+
+// =============================================================================
+// State
+// =============================================================================
+let feedOrders = [];
+let feedGeneratedAt = null;
+let staffData = {}; // { [cheqroomId]: {status, note, updatedBy, updatedAt} }
+let weekMonday = getMonday(new Date());
+let mobileDayIdx = 0;
+let editingId = null;
+
+// =============================================================================
+// Date helpers
+// =============================================================================
+function toISODate(d) {
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
+}
+function getMonday(d) {
+  const date = new Date(d);
+  const day = date.getDay();
+  date.setDate(date.getDate() + (day === 0 ? -6 : 1 - day));
+  date.setHours(0,0,0,0);
+  return date;
+}
+function addDays(d, n) { const date = new Date(d); date.setDate(date.getDate()+n); return date; }
+function formatShort(d) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+function formatRange(monday) {
+  const friday = addDays(monday, 4);
+  if (monday.getMonth() === friday.getMonth()) {
+    return `${monday.toLocaleDateString("en-US",{month:"short"})} ${monday.getDate()}–${friday.getDate()}`;
+  }
+  return `${formatShort(monday)} – ${formatShort(friday)}`;
+}
+function relTime(ts) {
+  if (!ts) return "never";
+  const min = Math.round((Date.now()-ts)/60000);
+  if (min < 1) return "just now";
+  if (min < 60) return `${min}m ago`;
+  const hr = Math.round(min/60);
+  if (hr < 24) return `${hr}h ago`;
+  return `${Math.round(hr/24)}d ago`;
+}
+
+// =============================================================================
+// Initials (per-device, plain localStorage — fine since it's just a personal label)
+// =============================================================================
+function getInitials() { return localStorage.getItem("eo-initials") || ""; }
+function renderInitials() {
+  const el = document.getElementById("initialsDisplay");
+  const current = getInitials();
+  if (current) {
+    el.innerHTML = `<button class="chip" onclick="promptInitials()">${current}</button>`;
+  } else {
+    el.innerHTML = `<button class="btn" onclick="promptInitials()">Set initials</button>`;
+  }
+}
+function promptInitials() {
+  const val = prompt("Your initials (shown next to updates you make):", getInitials());
+  if (val && val.trim()) {
+    localStorage.setItem("eo-initials", val.trim().toUpperCase().slice(0,4));
+    renderInitials();
+  }
+}
+
+// =============================================================================
+// Fetch the Cheqroom feed (same-origin static file, refreshed every 15 min by GitHub Action)
+// =============================================================================
+async function fetchFeed() {
+  const icon = document.getElementById("refreshIcon");
+  icon.classList.add("spinning");
+  try {
+    const res = await fetch(ORDERS_FEED_URL + "?t=" + Date.now()); // cache-bust
+    if (!res.ok) throw new Error(`Feed returned ${res.status}`);
+    const data = await res.json();
+    feedOrders = Array.isArray(data.orders) ? data.orders : [];
+    feedGeneratedAt = data.generatedAt || null;
+    document.getElementById("syncText").textContent =
+      `Synced from Cheqroom · last updated ${relTime(feedGeneratedAt ? new Date(feedGeneratedAt).getTime() : null)}`;
+    document.getElementById("syncText").classList.remove("error");
+  } catch (err) {
+    document.getElementById("syncText").textContent = `Couldn't reach the Cheqroom feed (${err.message}).`;
+    document.getElementById("syncText").classList.add("error");
+  } finally {
+    icon.classList.remove("spinning");
+    render();
+  }
+}
+
+// =============================================================================
+// Fetch / write staff status data via Firebase Realtime Database REST API
+// =============================================================================
+async function fetchStaffData() {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return; // not configured yet
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/staffData.json`);
+    const data = await res.json();
+    staffData = data || {};
+  } catch (err) {
+    console.error("Couldn't reach Firebase:", err);
+  }
+  render();
+}
+
+async function updateStaffField(cheqroomId, patch) {
+  const existing = staffData[cheqroomId] || {};
+  const updated = {
+    ...existing,
+    ...patch,
+    updatedBy: getInitials() || existing.updatedBy || "—",
+    updatedAt: Date.now(),
+  };
+  staffData[cheqroomId] = updated;
+  render(); // optimistic update
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    await fetch(`${FIREBASE_DB_URL}/staffData/${cheqroomId}.json`, {
+      method: "PUT",
+      body: JSON.stringify(updated),
+    });
+  } catch (err) {
+    console.error("Couldn't save to Firebase:", err);
+  }
+}
+
+// =============================================================================
+// Rendering
+// =============================================================================
+function getWeekDays() {
+  return DAY_NAMES.map((name, i) => ({ name, date: addDays(weekMonday, i) }));
+}
+
+function render() {
+  document.getElementById("weekLabel").textContent = formatRange(weekMonday);
+
+  const orders = feedOrders.map(o => {
+    const staff = staffData[o.cheqroomId] || {};
+    return { ...o, staffStatus: staff.status || "pending", note: staff.note || "",
+             updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null };
+  });
+
+  const weekDays = getWeekDays();
+  const ordersByDay = {};
+  weekDays.forEach(d => ordersByDay[toISODate(d.date)] = []);
+  orders.forEach(o => { if (ordersByDay[o.date]) ordersByDay[o.date].push(o); });
+  Object.values(ordersByDay).forEach(list => list.sort((a,b) => (a.time||"").localeCompare(b.time||"")));
+
+  // legend
+  const counts = {};
+  STATUSES.forEach(s => counts[s.id] = 0);
+  orders.forEach(o => { if (weekDays.some(d => toISODate(d.date) === o.date)) counts[o.staffStatus]++; });
+  document.getElementById("legend").innerHTML = STATUSES.map(s => `
+    <div class="legend-item">
+      <span class="dot" style="background:${s.color}"></span>
+      <span style="color:#5B6470">${s.label}</span>
+      <strong>${counts[s.id]}</strong>
+    </div>`).join("");
+
+  // day tabs
+  document.getElementById("dayTabs").innerHTML = weekDays.map((d,i) => `
+    <button class="day-tab ${i===mobileDayIdx?'active':''}" onclick="scrollToDay(${i})">${d.name} ${d.date.getDate()}</button>
+  `).join("");
+
+  // board
+  const todayIso = toISODate(new Date());
+  document.getElementById("board").innerHTML = weekDays.map((d,i) => {
+    const iso = toISODate(d.date);
+    const dayOrders = ordersByDay[iso] || [];
+    const isToday = iso === todayIso;
+    return `
+      <div class="day-col" id="daycol-${i}">
+        <div class="day-head">
+          <div>
+            <div class="day-name" style="color:${isToday?'#B23A32':'#1A1D21'}">${d.name}</div>
+            <div class="day-date">${formatShort(d.date)}</div>
+          </div>
+          <div class="day-count">${dayOrders.length}</div>
+        </div>
+        <div class="card-stack">
+          ${dayOrders.length === 0 ? '<div class="empty-day">No orders this day</div>' : ''}
+          ${dayOrders.map(o => cardHtml(o)).join("")}
+        </div>
+      </div>`;
+  }).join("");
+}
+
+function cardHtml(o) {
+  const s = statusById(o.staffStatus);
+  const cheqroomLabel = CHEQROOM_STATUS_LABEL[o.cheqroomStatus] || o.cheqroomStatus;
+  return `
+    <div class="card" style="border-left-color:${s.color}">
+      <div class="card-top">
+        <div class="card-name">${escapeHtml(o.name)}</div>
+        <span class="cheqroom-tag">${escapeHtml(cheqroomLabel)}</span>
+      </div>
+      ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
+      ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
+      ${o.note ? `<div class="card-note">⚠ ${escapeHtml(o.note)}</div>` : ""}
+      <select class="status-select" style="color:${s.color};background:${s.bg}"
+              onchange="updateStaffField('${o.cheqroomId}', {status: this.value})">
+        ${STATUSES.map(st => `<option value="${st.id}" ${st.id===o.staffStatus?"selected":""}>${st.label}</option>`).join("")}
+      </select>
+      <div class="card-footer">
+        <button class="edit-link" onclick="openNoteModal('${o.cheqroomId}')">Add note</button>
+        <span>${o.updatedBy ? o.updatedBy + " · " : ""}${o.updatedAt ? relTime(o.updatedAt) : ""}</span>
+      </div>
+    </div>`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement("div");
+  div.textContent = str ?? "";
+  return div.innerHTML;
+}
+
+// =============================================================================
+// Note modal
+// =============================================================================
+function openNoteModal(cheqroomId) {
+  editingId = cheqroomId;
+  const order = feedOrders.find(o => o.cheqroomId === cheqroomId);
+  const staff = staffData[cheqroomId] || {};
+  document.getElementById("noteModalName").textContent = order?.name || "";
+  document.getElementById("noteModalMeta").textContent = `${order?.items || ""} ${order?.time ? "· " + order.time : ""}`;
+  document.getElementById("noteInput").value = staff.note || "";
+  document.getElementById("noteModal").classList.add("open");
+}
+function closeNoteModal() {
+  document.getElementById("noteModal").classList.remove("open");
+  editingId = null;
+}
+function saveNote() {
+  const note = document.getElementById("noteInput").value;
+  updateStaffField(editingId, { note });
+  closeNoteModal();
+}
+
+// =============================================================================
+// Week nav
+// =============================================================================
+function changeWeek(days) { weekMonday = addDays(weekMonday, days); render(); }
+function goToday() { weekMonday = getMonday(new Date()); render(); }
+function scrollToDay(i) {
+  mobileDayIdx = i;
+  document.getElementById(`daycol-${i}`)?.scrollIntoView({ behavior: "smooth", inline: "start" });
+  render();
+}
+
+// =============================================================================
+// Boot
+// =============================================================================
+renderInitials();
+fetchFeed();
+fetchStaffData();
+setInterval(fetchFeed, 5 * 60 * 1000);
+setInterval(fetchStaffData, 30 * 1000); // pick up other staff's updates every 30s
+</script>
+</body>
+</html>
