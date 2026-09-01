@@ -42,10 +42,11 @@ def get_credentials():
 
 def fetch_reservations(api_key, user_id):
     """
-    Searches reservations whose start date falls within today through 41 days
-    from now (a 6-week window). Pages through results 100 at a time so we
-    never silently drop reservations during a busy stretch. Exits with a
-    descriptive error so the GitHub Actions log makes any failure obvious.
+    Pulls every reservation from Cheqroom's 'upcoming' list, paging through
+    results 100 at a time. We filter down to the 6-week window ourselves in
+    Python afterward, rather than relying on fromDate__gte/lte query params —
+    those aren't shown in Cheqroom's own documented example for this endpoint,
+    and empirically seemed to be ignored rather than applied.
     """
     url = f"{CHEQROOM_BASE_URL}/{user_id}/null/jwt/reservations/search"
 
@@ -55,9 +56,6 @@ def fetch_reservations(api_key, user_id):
         "Content-Type": "application/x-www-form-urlencoded",
     }
 
-    today = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    week_end = today + timedelta(days=42)  # 6 weeks ahead
-
     page_size = 100
     skip = 0
     all_items = []
@@ -66,11 +64,9 @@ def fetch_reservations(api_key, user_id):
         data = {
             "_fields": RESERVATION_FIELDS,
             "_sort": "fromDate",
-            "_listname": "all",
+            "_listname": "upcoming",
             "_limit": page_size,
             "_skip": skip,
-            "fromDate__gte": today.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "fromDate__lte": week_end.strftime("%Y-%m-%dT%H:%M:%SZ"),
         }
 
         print(f"Requesting: POST {url} (skip={skip})")
@@ -111,6 +107,18 @@ def fetch_reservations(api_key, user_id):
         skip += page_size
 
     return all_items
+
+
+def within_window(from_date_str, days_ahead=42):
+    """Keep only reservations starting today through `days_ahead` days from now."""
+    if not from_date_str:
+        return False
+    try:
+        start = datetime.fromisoformat(from_date_str.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    now = datetime.now(timezone.utc)
+    return now - timedelta(days=1) <= start <= now + timedelta(days=days_ahead)
 
 
 def format_time(hh_mm):
@@ -168,7 +176,12 @@ def normalize(raw_items):
 def main():
     api_key, user_id = get_credentials()
     raw = fetch_reservations(api_key, user_id)
-    normalized = normalize(raw)
+    print(f"Total reservations fetched from 'upcoming': {len(raw)}")
+
+    windowed = [r for r in raw if within_window(r.get("fromDate", ""))]
+    print(f"Reservations within the 6-week window: {len(windowed)}")
+
+    normalized = normalize(windowed)
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     payload = {
