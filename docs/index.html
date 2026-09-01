@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -51,6 +50,16 @@
   .split-out { color: #3D5A9E; background: #EBEFF9; border-radius: 10px; padding: 3px 10px; }
   .split-in { color: #B8862E; background: #FBF2E1; border-radius: 10px; padding: 3px 10px; }
   .card-stack { display: flex; flex-direction: column; gap: 8px; }
+  .todo-card { background: #FFF6E0; border: 1px dashed #E3C67F; border-radius: 6px; padding: 9px 10px; margin-bottom: 10px; }
+  .todo-head { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 13.5px; color: #8A6216; margin-bottom: 6px; letter-spacing: 0.02em; }
+  .todo-item { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; padding: 3px 0; color: #4A3B14; }
+  .todo-item input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
+  .todo-text { flex: 1; word-break: break-word; }
+  .todo-item.done .todo-text { text-decoration: line-through; color: #B3A47E; }
+  .todo-del { border: none; background: none; color: #B23A32; cursor: pointer; font-size: 13px; padding: 0 0 0 4px; flex-shrink: 0; }
+  .todo-add { display: flex; gap: 5px; margin-top: 6px; }
+  .todo-add input { flex: 1; min-width: 0; border: 1px solid #E3C67F; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; background: #fff; }
+  .todo-add button { border: none; background: #8A6216; color: #fff; border-radius: 4px; padding: 5px 11px; cursor: pointer; font-size: 15px; font-weight: 700; flex-shrink: 0; }
   .empty-day { font-size: 14.5px; color: #A6A9AC; font-style: italic; padding: 10px 2px; }
   .card { border-radius: 6px; padding: 11px 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
   .card.checkout { background: #DCE5F7; border: 1px solid #B9CBEE; }
@@ -122,7 +131,7 @@
 // CONFIG — fill these in after setup
 // =============================================================================
 const ORDERS_FEED_URL = "./orders.json"; // same-origin, no CORS issue
-const FIREBASE_DB_URL = "https://eo-dashboard-dc334-default-rtdb.firebaseio.com/"; // e.g. https://your-project-default-rtdb.firebaseio.com
+const FIREBASE_DB_URL = "REPLACE_WITH_YOUR_FIREBASE_DATABASE_URL"; // e.g. https://your-project-default-rtdb.firebaseio.com
 
 // =============================================================================
 // Status model
@@ -148,6 +157,7 @@ const DAY_NAMES = ["Mon", "Tue", "Wed", "Thu", "Fri"];
 let feedOrders = [];
 let feedGeneratedAt = null;
 let staffData = {}; // { [cheqroomId]: {status, note, updatedBy, updatedAt} }
+let dayNotes = {}; // { "yyyy-mm-dd": [{id, text, done, addedBy, addedAt}] }
 let weekMonday = getMonday(new Date());
 let editingId = null;
 
@@ -282,6 +292,72 @@ function showFirebaseError(message) {
 }
 
 // =============================================================================
+// Pinned daily priorities ("to-do" cards), stored per date, synced like staffData
+// =============================================================================
+async function fetchDayNotes() {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return; // not configured yet
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/dayNotes.json`);
+    if (!res.ok) throw new Error(`Firebase read returned ${res.status}`);
+    const data = await res.json();
+    dayNotes = data || {};
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't load day notes:", err);
+    showFirebaseError(`Can't load today's priorities (${err.message}).`);
+  }
+  render();
+}
+
+async function saveDayNotes(dateIso, items) {
+  dayNotes[dateIso] = items;
+  render(); // optimistic update
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/dayNotes/${dateIso}.json`, {
+      method: "PUT",
+      body: JSON.stringify(items),
+    });
+    if (!res.ok) throw new Error(`Firebase write returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't save day notes:", err);
+    showFirebaseError(`Your priority list change didn't save (${err.message}). It'll be lost on refresh.`);
+  }
+}
+
+function addTodo(dateIso) {
+  const inputEl = document.getElementById(`todo-input-${dateIso}`);
+  const text = inputEl.value.trim();
+  if (!text) return;
+  const items = [...(dayNotes[dateIso] || [])];
+  items.push({
+    id: "t" + Date.now() + Math.random().toString(36).slice(2, 7),
+    text,
+    done: false,
+    addedBy: getInitials() || "—",
+    addedAt: Date.now(),
+  });
+  saveDayNotes(dateIso, items);
+  // saveDayNotes triggers a full re-render, which clears this input naturally
+  // since it's rebuilt fresh — no manual reset needed.
+}
+
+function toggleTodo(dateIso, id) {
+  const items = (dayNotes[dateIso] || []).map(t => t.id === id ? { ...t, done: !t.done } : t);
+  saveDayNotes(dateIso, items);
+}
+
+function deleteTodo(dateIso, id) {
+  const items = (dayNotes[dateIso] || []).filter(t => t.id !== id);
+  saveDayNotes(dateIso, items);
+}
+
+function todoKeydown(event, dateIso) {
+  if (event.key === "Enter") addTodo(dateIso);
+}
+
+// =============================================================================
 // Rendering
 // =============================================================================
 function getWeekDays() {
@@ -324,11 +400,30 @@ function render() {
           </div>
         </div>
         <div class="card-stack">
+          ${todoCardHtml(iso)}
           ${dayOrders.length === 0 ? '<div class="empty-day">No orders this day</div>' : ''}
           ${dayOrders.map(o => cardHtml(o)).join("")}
         </div>
       </div>`;
   }).join("");
+}
+
+function todoCardHtml(dateIso) {
+  const items = dayNotes[dateIso] || [];
+  return `
+    <div class="todo-card">
+      <div class="todo-head">📌 Priorities</div>
+      ${items.map(t => `
+        <div class="todo-item ${t.done ? "done" : ""}">
+          <input type="checkbox" ${t.done ? "checked" : ""} onchange="toggleTodo('${dateIso}','${t.id}')" />
+          <span class="todo-text">${escapeHtml(t.text)}</span>
+          <button class="todo-del" onclick="deleteTodo('${dateIso}','${t.id}')" title="Remove">✕</button>
+        </div>`).join("")}
+      <div class="todo-add">
+        <input type="text" id="todo-input-${dateIso}" placeholder="Add a priority…" onkeydown="todoKeydown(event, '${dateIso}')" />
+        <button onclick="addTodo('${dateIso}')">+</button>
+      </div>
+    </div>`;
 }
 
 function cardHtml(o) {
@@ -394,8 +489,10 @@ function goToday() { weekMonday = getMonday(new Date()); render(); }
 renderInitials();
 fetchFeed();
 fetchStaffData();
+fetchDayNotes();
 setInterval(fetchFeed, 5 * 60 * 1000);
 setInterval(fetchStaffData, 30 * 1000); // pick up other staff's updates every 30s
+setInterval(fetchDayNotes, 30 * 1000); // pick up other staff's priority-list edits every 30s
 </script>
 </body>
 </html>
