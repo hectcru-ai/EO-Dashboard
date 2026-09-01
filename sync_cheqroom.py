@@ -106,8 +106,8 @@ RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary,lo
 ORDER_FIELDS = "status,number,started,due,customer.name,itemSummary,location.name"
 
 
-def within_window(from_date_str, days_ahead=42):
-    """Keep only reservations starting today through `days_ahead` days from now."""
+def within_window(from_date_str, days_ahead=56):
+    """Keep only reservations starting today through `days_ahead` days from now (8 weeks)."""
     if not from_date_str:
         return False
     try:
@@ -192,7 +192,7 @@ def main():
         return item.get("fromDate") or item.get("started") or ""
 
     windowed = [r for r in raw if within_window(start_of(r))]
-    print(f"Combined items within the 6-week window: {len(windowed)}")
+    print(f"Combined items within the 8-week window: {len(windowed)}")
     for r in windowed:
         cust = (r.get("customer") or {}).get("name", "?")
         print(f"  - [{r['_source']}] {cust} | start={start_of(r)} | status={r.get('status')}")
