@@ -177,11 +177,21 @@ def main():
     api_key, user_id = get_credentials()
     raw = fetch_reservations(api_key, user_id)
     print(f"Total reservations fetched from 'upcoming': {len(raw)}")
+    for r in raw:
+        cust = (r.get("customer") or {}).get("name", "?")
+        print(f"  - {cust} | fromDate={r.get('fromDate')} | status={r.get('status')}")
 
     windowed = [r for r in raw if within_window(r.get("fromDate", ""))]
     print(f"Reservations within the 6-week window: {len(windowed)}")
 
-    normalized = normalize(windowed)
+    # Only statuses that actually matter for day-to-day workflow. If "open"
+    # turns out not to match Cheqroom's "Reserved" label exactly, tell me
+    # and we'll adjust this one line.
+    ACTIVE_STATUSES = {"open"}
+    active = [r for r in windowed if r.get("status") in ACTIVE_STATUSES]
+    print(f"Active-status reservations (open only): {len(active)}")
+
+    normalized = normalize(active)
 
     os.makedirs(os.path.dirname(OUTPUT_PATH), exist_ok=True)
     payload = {
