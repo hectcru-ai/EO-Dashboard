@@ -53,12 +53,18 @@
   .day-name { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 15px; }
   .day-date { font-size: 11.5px; color: var(--muted); }
   .day-count { font-family: 'Oswald', sans-serif; font-size: 12px; color: var(--muted); background: #fff; border-radius: 10px; padding: 2px 8px; border: 1px solid #DCDAD2; }
+  .day-count-split { display: flex; gap: 4px; font-family: 'Oswald', sans-serif; font-size: 11px; font-weight: 700; }
+  .split-out { color: #3D5A9E; background: #EBEFF9; border-radius: 10px; padding: 2px 7px; }
+  .split-in { color: #B8862E; background: #FBF2E1; border-radius: 10px; padding: 2px 7px; }
   .card-stack { display: flex; flex-direction: column; gap: 8px; }
   .empty-day { font-size: 12.5px; color: #A6A9AC; font-style: italic; padding: 10px 2px; }
   .card { background: var(--card); border-radius: 5px; border-left: 4px solid; padding: 9px 10px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
   .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
   .card-name { display: flex; align-items: center; gap: 5px; font-size: 13.5px; font-weight: 600; }
   .cheqroom-tag { font-size: 10px; color: var(--muted); background: #F0EFEC; border: 1px solid #E2E0DA; border-radius: 3px; padding: 1px 5px; white-space: nowrap; font-weight: 600; }
+  .action-tag { display: inline-block; font-size: 10.5px; font-weight: 700; border-radius: 3px; padding: 2px 6px; margin-top: 5px; }
+  .action-tag.checkout { color: #3D5A9E; background: #EBEFF9; }
+  .action-tag.checkin { color: #B8862E; background: #FBF2E1; }
   .card-meta { display: flex; align-items: center; gap: 4px; font-size: 12px; color: #5B6470; margin-top: 4px; }
   .card-note { font-size: 12px; color: var(--accent); margin-top: 5px; background: #FBEAE8; border-radius: 4px; padding: 4px 6px; }
   select.status-select { width: 100%; margin-top: 8px; border: none; border-radius: 4px; padding: 6px 8px; font-size: 12.5px; font-weight: 600; font-family: inherit; cursor: pointer; }
@@ -125,7 +131,7 @@
 // CONFIG — fill these in after setup
 // =============================================================================
 const ORDERS_FEED_URL = "./orders.json"; // same-origin, no CORS issue
-const FIREBASE_DB_URL = "https://eo-dashboard-dc334-default-rtdb.firebaseio.com/"; // e.g. https://your-project-default-rtdb.firebaseio.com
+const FIREBASE_DB_URL = "REPLACE_WITH_YOUR_FIREBASE_DATABASE_URL"; // e.g. https://your-project-default-rtdb.firebaseio.com
 
 // =============================================================================
 // Status model
@@ -313,6 +319,8 @@ function render() {
     const iso = toISODate(d.date);
     const dayOrders = ordersByDay[iso] || [];
     const isToday = iso === todayIso;
+    const outCount = dayOrders.filter(o => o.action !== "checkin").length;
+    const inCount = dayOrders.filter(o => o.action === "checkin").length;
     return `
       <div class="day-col" id="daycol-${i}">
         <div class="day-head">
@@ -320,7 +328,10 @@ function render() {
             <div class="day-name" style="color:${isToday?'#B23A32':'#1A1D21'}">${d.name}</div>
             <div class="day-date">${formatShort(d.date)}</div>
           </div>
-          <div class="day-count">${dayOrders.length}</div>
+          <div class="day-count-split">
+            <span class="split-out">↪${outCount}</span>
+            <span class="split-in">↩${inCount}</span>
+          </div>
         </div>
         <div class="card-stack">
           ${dayOrders.length === 0 ? '<div class="empty-day">No orders this day</div>' : ''}
@@ -333,12 +344,14 @@ function render() {
 function cardHtml(o) {
   const s = statusById(o.staffStatus);
   const cheqroomLabel = CHEQROOM_STATUS_LABEL[o.cheqroomStatus] || o.cheqroomStatus;
+  const isCheckin = o.action === "checkin";
   return `
     <div class="card" style="border-left-color:${s.color}">
       <div class="card-top">
         <div class="card-name">${escapeHtml(o.name)}</div>
         <span class="cheqroom-tag">${escapeHtml(cheqroomLabel)}</span>
       </div>
+      ${isCheckin ? '<div class="action-tag checkin">↩ Check-in due</div>' : '<div class="action-tag checkout">↪ Check-out</div>'}
       ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
       ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
       ${o.note ? `<div class="card-note">⚠ ${escapeHtml(o.note)}</div>` : ""}
