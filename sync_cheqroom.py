@@ -19,10 +19,6 @@ import requests
 
 CHEQROOM_BASE_URL = "https://app.cheqroom.com/api/v2_5"
 
-# Fields to pull back for each reservation. See Cheqroom's docs for the full
-# list of what's available — trimmed here to just what the board displays.
-RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary,location.name"
-
 OUTPUT_PATH = os.path.join(os.path.dirname(__file__), "docs", "orders.json")
 
 
@@ -40,15 +36,14 @@ def get_credentials():
     return api_key, user_id
 
 
-def fetch_reservations(api_key, user_id):
+def fetch_list(api_key, user_id, collection, fields):
     """
-    Pulls every reservation from Cheqroom's 'upcoming' list, paging through
-    results 100 at a time. We filter down to the 6-week window ourselves in
-    Python afterward, rather than relying on fromDate__gte/lte query params —
-    those aren't shown in Cheqroom's own documented example for this endpoint,
-    and empirically seemed to be ignored rather than applied.
+    Pages through every item in a Cheqroom collection ('reservations' or
+    'orders'), 100 at a time, using the 'upcoming' list. In practice Cheqroom
+    seems to ignore _listname/date filters on this endpoint and just returns
+    everything regardless — so we fetch it all and filter client-side later.
     """
-    url = f"{CHEQROOM_BASE_URL}/{user_id}/null/jwt/reservations/search"
+    url = f"{CHEQROOM_BASE_URL}/{user_id}/null/jwt/{collection}/search"
 
     headers = {
         "Authorization": f"Bearer {api_key}",
@@ -62,8 +57,8 @@ def fetch_reservations(api_key, user_id):
 
     while True:
         data = {
-            "_fields": RESERVATION_FIELDS,
-            "_sort": "fromDate",
+            "_fields": fields,
+            "_sort": "created",
             "_listname": "upcoming",
             "_limit": page_size,
             "_skip": skip,
@@ -85,8 +80,6 @@ def fetch_reservations(api_key, user_id):
             sys.exit(1)
 
         payload = resp.json()
-        if skip == 0:
-            print(f"Top-level response keys: {list(payload.keys()) if isinstance(payload, dict) else 'response is a bare list'}")
 
         if isinstance(payload, dict):
             page_items = (
@@ -100,13 +93,17 @@ def fetch_reservations(api_key, user_id):
             page_items = payload
 
         all_items.extend(page_items)
-        print(f"Fetched {len(page_items)} on this page (total so far: {len(all_items)}).")
+        print(f"[{collection}] Fetched {len(page_items)} on this page (total so far: {len(all_items)}).")
 
         if len(page_items) < page_size:
             break  # last page
         skip += page_size
 
     return all_items
+
+
+RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary,location.name"
+ORDER_FIELDS = "status,number,started,due,customer.name,itemSummary,location.name"
 
 
 def within_window(from_date_str, days_ahead=42):
@@ -153,21 +150,24 @@ def short_name(full_name):
 
 def normalize(raw_items):
     """
-    Maps Cheqroom's reservation fields into the flat shape the board expects.
+    Maps Cheqroom's fields into the flat shape the board expects. Reservations
+    use "fromDate" for their start time; orders (check-outs) use "started" —
+    we accept either.
     """
     normalized = []
     for r in raw_items:
         full_name = (r.get("customer") or {}).get("name", "")
-        from_date = r.get("fromDate", "") or ""
+        start = r.get("fromDate") or r.get("started") or ""
         normalized.append(
             {
                 "cheqroomId": r.get("_id") or r.get("id"),
                 "name": short_name(full_name),
-                "date": from_date[:10],
-                "time": format_time(from_date[11:16]) if len(from_date) >= 16 else "",
+                "date": start[:10],
+                "time": format_time(start[11:16]) if len(start) >= 16 else "",
                 "items": r.get("itemSummary", ""),
                 "location": (r.get("location") or {}).get("name", ""),
                 "cheqroomStatus": r.get("status", "unknown"),
+                "source": r.get("_source", "unknown"),
             }
         )
     return normalized
@@ -175,21 +175,32 @@ def normalize(raw_items):
 
 def main():
     api_key, user_id = get_credentials()
-    raw = fetch_reservations(api_key, user_id)
-    print(f"Total reservations fetched from 'upcoming': {len(raw)}")
-    for r in raw:
+
+    reservations = fetch_list(api_key, user_id, "reservations", RESERVATION_FIELDS)
+    for r in reservations:
+        r["_source"] = "reservation"
+    print(f"Total reservations fetched: {len(reservations)}")
+
+    orders = fetch_list(api_key, user_id, "orders", ORDER_FIELDS)
+    for o in orders:
+        o["_source"] = "order"
+    print(f"Total orders (check-outs) fetched: {len(orders)}")
+
+    raw = reservations + orders
+
+    def start_of(item):
+        return item.get("fromDate") or item.get("started") or ""
+
+    windowed = [r for r in raw if within_window(start_of(r))]
+    print(f"Combined items within the 6-week window: {len(windowed)}")
+    for r in windowed:
         cust = (r.get("customer") or {}).get("name", "?")
-        print(f"  - {cust} | fromDate={r.get('fromDate')} | status={r.get('status')}")
+        print(f"  - [{r['_source']}] {cust} | start={start_of(r)} | status={r.get('status')}")
 
-    windowed = [r for r in raw if within_window(r.get("fromDate", ""))]
-    print(f"Reservations within the 6-week window: {len(windowed)}")
-
-    # Only statuses that actually matter for day-to-day workflow. If "open"
-    # turns out not to match Cheqroom's "Reserved" label exactly, tell me
-    # and we'll adjust this one line.
+    # Only statuses that actually matter for day-to-day workflow.
     ACTIVE_STATUSES = {"open"}
     active = [r for r in windowed if r.get("status") in ACTIVE_STATUSES]
-    print(f"Active-status reservations (open only): {len(active)}")
+    print(f"Active-status items (open only): {len(active)}")
 
     normalized = normalize(active)
 
