@@ -85,6 +85,9 @@ def fetch_reservations(api_key, user_id):
         sys.exit(1)
 
     payload = resp.json()
+    print(f"Top-level response keys: {list(payload.keys()) if isinstance(payload, dict) else 'response is a bare list'}")
+    print(f"Raw response (first 1000 chars): {json.dumps(payload)[:1000]}")
+
     # Cheqroom's search endpoints commonly wrap results, e.g. {"results": [...]}
     # or {"docs": [...]}. Handle a few shapes plus a bare list, so we don't
     # crash on a shape we haven't seen a real example of yet.
