@@ -1,5 +1,4 @@
 
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -247,10 +246,13 @@ async function fetchStaffData() {
   if (FIREBASE_DB_URL.startsWith("REPLACE_")) return; // not configured yet
   try {
     const res = await fetch(`${FIREBASE_DB_URL}/staffData.json`);
+    if (!res.ok) throw new Error(`Firebase read returned ${res.status}`);
     const data = await res.json();
     staffData = data || {};
+    document.getElementById("firebaseError")?.remove();
   } catch (err) {
     console.error("Couldn't reach Firebase:", err);
+    showFirebaseError(`Can't load saved statuses (${err.message}).`);
   }
   render();
 }
@@ -267,13 +269,27 @@ async function updateStaffField(cheqroomId, patch) {
   render(); // optimistic update
   if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
   try {
-    await fetch(`${FIREBASE_DB_URL}/staffData/${cheqroomId}.json`, {
+    const res = await fetch(`${FIREBASE_DB_URL}/staffData/${cheqroomId}.json`, {
       method: "PUT",
       body: JSON.stringify(updated),
     });
+    if (!res.ok) throw new Error(`Firebase write returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
   } catch (err) {
     console.error("Couldn't save to Firebase:", err);
+    showFirebaseError(`Your change didn't save (${err.message}). It'll be lost on refresh.`);
   }
+}
+
+function showFirebaseError(message) {
+  let el = document.getElementById("firebaseError");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "firebaseError";
+    el.style.cssText = "background:#FBEAE8;color:#B23A32;border:1px solid #E9C7C3;border-radius:6px;padding:8px 12px;margin-top:10px;font-size:12.5px;";
+    document.querySelector(".sync-bar").insertAdjacentElement("afterend", el);
+  }
+  el.textContent = message;
 }
 
 // =============================================================================
