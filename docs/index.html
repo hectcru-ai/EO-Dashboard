@@ -54,7 +54,7 @@
   .todo-head { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 13.5px; color: #8A6216; margin-bottom: 6px; letter-spacing: 0.02em; }
   .todo-item { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; padding: 3px 0; color: #4A3B14; }
   .todo-item input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
-  .todo-text { flex: 1; word-break: break-word; }
+  .todo-text { flex: 1; word-break: break-word; white-space: pre-wrap; }
   .todo-item.done .todo-text { text-decoration: line-through; color: #B3A47E; }
   .todo-del { border: none; background: none; color: #B23A32; cursor: pointer; font-size: 13px; padding: 0 0 0 4px; flex-shrink: 0; }
   .todo-add { display: flex; gap: 5px; margin-top: 6px; }
@@ -68,7 +68,7 @@
   .card-name { display: flex; align-items: center; gap: 5px; font-size: 15.5px; font-weight: 600; }
   .cheqroom-tag { font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.08); border-radius: 3px; padding: 2px 6px; white-space: nowrap; font-weight: 600; }
   .card-meta { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #3F444B; margin-top: 5px; }
-  .card-note { font-size: 13.5px; color: var(--accent); margin-top: 6px; background: rgba(255,255,255,0.75); border-radius: 4px; padding: 5px 7px; }
+  .card-note { font-size: 13.5px; color: var(--accent); margin-top: 6px; background: rgba(255,255,255,0.75); border-radius: 4px; padding: 5px 7px; white-space: pre-wrap; }
   select.status-select { width: 100%; margin-top: 9px; border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; background: #fff; color: var(--ink); }
   .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 11.5px; color: #4B4F55; }
   .edit-link { border: none; background: none; color: #2C4A8C; cursor: pointer; font-size: 13px; padding: 0; font-weight: 600; }
@@ -367,6 +367,15 @@ function getWeekDays() {
 function render() {
   document.getElementById("weekLabel").textContent = formatRange(weekMonday);
 
+  // If the user is mid-typing into a "add a priority" box when a background
+  // refresh fires, capture it so we can restore it after re-rendering —
+  // otherwise a full re-render replaces that input with a blank one.
+  const active = document.activeElement;
+  let draft = null;
+  if (active && active.id && active.id.startsWith("todo-input-")) {
+    draft = { id: active.id, value: active.value, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd };
+  }
+
   const orders = feedOrders.map(o => {
     const staff = staffData[o.cheqroomId] || {};
     return { ...o, staffStatus: staff.status || "pending", note: staff.note || "",
@@ -406,6 +415,16 @@ function render() {
         </div>
       </div>`;
   }).join("");
+
+  // restore whatever was being typed, and put the cursor back where it was
+  if (draft) {
+    const el = document.getElementById(draft.id);
+    if (el) {
+      el.value = draft.value;
+      el.focus();
+      el.setSelectionRange(draft.selectionStart, draft.selectionEnd);
+    }
+  }
 }
 
 function todoCardHtml(dateIso) {
