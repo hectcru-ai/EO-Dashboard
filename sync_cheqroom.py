@@ -110,20 +110,6 @@ ORDER_FIELDS = "status,number,started,due,customer.name,itemSummary,location.nam
 GRADE_LEVEL_FIELD = "Grade level"
 
 
-def relevant_date(item):
-    """
-    The date that actually matters for windowing/display purposes:
-    - Reservations: fromDate (when the pickup is scheduled)
-    - Orders (checkouts): due (when it needs to come back) — falling back to
-      started if due is missing, so we don't crash on an odd record. Using
-      "started" as the window basis for orders would wrongly filter out an
-      item checked out weeks ago that's still due back soon.
-    """
-    if item.get("_source") == "order":
-        return item.get("due") or item.get("started") or ""
-    return item.get("fromDate") or item.get("started") or ""
-
-
 def within_window(date_str, days_ahead=56):
     """Keep only items whose relevant date falls today through `days_ahead` days from now (8 weeks)."""
     if not date_str:
@@ -184,16 +170,16 @@ def short_name(full_name):
 
 def normalize(raw_items):
     """
-    Maps Cheqroom's fields into the flat shape the board expects. Reservations
-    are shown on their pickup date (fromDate); orders (check-outs) are shown
-    on their due date, since that's the date that actually matters for an
-    active checkout.
+    Maps Cheqroom's fields into the flat shape the board expects. Each item
+    already has _date and _action set during expansion in main() — a single
+    reservation becomes two entries (a checkout card at fromDate and a
+    check-in card at toDate) so a same-day pickup-and-return shows both ends,
+    not just the pickup.
     """
     normalized = []
     for r in raw_items:
         full_name = (r.get("customer") or {}).get("name", "")
-        date_str = relevant_date(r)
-        is_order = r.get("_source") == "order"
+        date_str = r.get("_date", "")
         grade_level = get_field_case_insensitive(r.get("fields") or {}, GRADE_LEVEL_FIELD)
         normalized.append(
             {
@@ -206,7 +192,7 @@ def normalize(raw_items):
                 "location": (r.get("location") or {}).get("name", ""),
                 "cheqroomStatus": r.get("status", "unknown"),
                 "source": r.get("_source", "unknown"),
-                "action": "checkin" if is_order else "checkout",
+                "action": r.get("_action", "checkout"),
             }
         )
     return normalized
@@ -216,22 +202,28 @@ def main():
     api_key, user_id = get_credentials()
 
     reservations = fetch_list(api_key, user_id, "reservations", RESERVATION_FIELDS)
-    for r in reservations:
-        r["_source"] = "reservation"
     print(f"Total reservations fetched: {len(reservations)}")
 
     orders = fetch_list(api_key, user_id, "orders", ORDER_FIELDS)
-    for o in orders:
-        o["_source"] = "order"
     print(f"Total orders (check-outs) fetched: {len(orders)}")
 
-    raw = reservations + orders
+    # A reservation carries both a pickup time (fromDate) and an expected
+    # return time (toDate) — expand it into two cards so both show up, even
+    # when pickup and return happen the same day. Orders (already-checked-out
+    # items) only need a check-in card, using their due date.
+    expanded = []
+    for r in reservations:
+        expanded.append({**r, "_source": "reservation", "_action": "checkout", "_date": r.get("fromDate") or ""})
+        if r.get("toDate"):
+            expanded.append({**r, "_source": "reservation", "_action": "checkin", "_date": r.get("toDate")})
+    for o in orders:
+        expanded.append({**o, "_source": "order", "_action": "checkin", "_date": o.get("due") or o.get("started") or ""})
 
-    windowed = [r for r in raw if within_window(relevant_date(r))]
+    windowed = [r for r in expanded if within_window(r["_date"])]
     print(f"Combined items within the 8-week window: {len(windowed)}")
     for r in windowed:
         cust = (r.get("customer") or {}).get("name", "?")
-        print(f"  - [{r['_source']}] {cust} | date={relevant_date(r)} | status={r.get('status')} | fields={r.get('fields')}")
+        print(f"  - [{r['_source']}/{r['_action']}] {cust} | date={r['_date']} | status={r.get('status')} | fields={r.get('fields')}")
 
     # Only statuses that actually matter for day-to-day workflow.
     ACTIVE_STATUSES = {"open"}
