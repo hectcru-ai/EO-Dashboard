@@ -68,6 +68,7 @@
   .card-name { display: flex; align-items: center; gap: 5px; font-size: 15.5px; font-weight: 600; }
   .cheqroom-tag { font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.08); border-radius: 3px; padding: 2px 6px; white-space: nowrap; font-weight: 600; }
   .grade-badge { display: inline-block; font-size: 13px; font-weight: 700; color: #1A1D21; background: rgba(255,255,255,0.85); border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; padding: 2px 8px; margin-top: 5px; }
+  .order-name { font-size: 12.5px; font-style: italic; color: #4B4F55; margin-top: 3px; }
   .card-meta { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #3F444B; margin-top: 5px; }
   .card-note { font-size: 13.5px; color: var(--accent); margin-top: 6px; background: rgba(255,255,255,0.75); border-radius: 4px; padding: 5px 7px; white-space: pre-wrap; }
   select.status-select { width: 100%; margin-top: 9px; border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; background: #fff; color: var(--ink); }
@@ -132,7 +133,7 @@
 // CONFIG — fill these in after setup
 // =============================================================================
 const ORDERS_FEED_URL = "./orders.json"; // same-origin, no CORS issue
-const FIREBASE_DB_URL = "https://eo-dashboard-dc334-default-rtdb.firebaseio.com/"; // e.g. https://your-project-default-rtdb.firebaseio.com
+const FIREBASE_DB_URL = "REPLACE_WITH_YOUR_FIREBASE_DATABASE_URL"; // e.g. https://your-project-default-rtdb.firebaseio.com
 
 // =============================================================================
 // Status model
@@ -455,6 +456,7 @@ function cardHtml(o) {
         <div class="card-name">${escapeHtml(o.name)}</div>
         <span class="cheqroom-tag">${escapeHtml(cheqroomLabel)}</span>
       </div>
+      ${o.orderName ? `<div class="order-name">${escapeHtml(o.orderName)}</div>` : ""}
       ${o.gradeLevel ? `<div class="grade-badge">🎓 ${escapeHtml(o.gradeLevel)}</div>` : ""}
       ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
       ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
