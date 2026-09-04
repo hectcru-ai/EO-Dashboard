@@ -102,8 +102,8 @@ def fetch_list(api_key, user_id, collection, fields):
     return all_items
 
 
-RESERVATION_FIELDS = "status,number,fromDate,toDate,customer.name,itemSummary,location.name,fields"
-ORDER_FIELDS = "status,number,started,due,customer.name,itemSummary,location.name,fields"
+RESERVATION_FIELDS = "name,status,number,fromDate,toDate,customer.name,itemSummary,location.name,fields"
+ORDER_FIELDS = "name,status,number,started,due,customer.name,itemSummary,location.name,fields"
 
 # The exact custom field name as entered in Cheqroom — must match precisely,
 # including capitalization, since custom field values come back keyed by name.
@@ -185,6 +185,7 @@ def normalize(raw_items):
             {
                 "cheqroomId": r.get("_id") or r.get("id"),
                 "name": short_name(full_name),
+                "orderName": r.get("name", ""),
                 "gradeLevel": grade_level,
                 "date": date_str[:10],
                 "time": format_time(date_str[11:16]) if len(date_str) >= 16 else "",
@@ -223,7 +224,7 @@ def main():
     print(f"Combined items within the 8-week window: {len(windowed)}")
     for r in windowed:
         cust = (r.get("customer") or {}).get("name", "?")
-        print(f"  - [{r['_source']}/{r['_action']}] {cust} | date={r['_date']} | status={r.get('status')} | fields={r.get('fields')}")
+        print(f"  - [{r['_source']}/{r['_action']}] {cust} | name={r.get('name')!r} | date={r['_date']} | status={r.get('status')} | fields={r.get('fields')}")
 
     # Only statuses that actually matter for day-to-day workflow.
     ACTIVE_STATUSES = {"open"}
