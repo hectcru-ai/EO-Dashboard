@@ -226,10 +226,25 @@ def main():
         cust = (r.get("customer") or {}).get("name", "?")
         print(f"  - [{r['_source']}/{r['_action']}] {cust} | name={r.get('name')!r} | date={r['_date']} | status={r.get('status')} | fields={r.get('fields')}")
 
-    # Only statuses that actually matter for day-to-day workflow.
-    ACTIVE_STATUSES = {"open"}
-    active = [r for r in windowed if r.get("status") in ACTIVE_STATUSES]
-    print(f"Active-status items (open only): {len(active)}")
+    # Normally only "open" (finalized) items matter for day-to-day workflow.
+    # Exception: a "creating" (still-draft) item happening today or tomorrow
+    # is worth showing anyway, since staff may need to start prepping before
+    # it's fully locked in — but a draft further out is much more likely to
+    # still change, so those stay hidden until finalized.
+    today = datetime.now(timezone.utc).date()
+    tomorrow = today + timedelta(days=1)
+    near_term_dates = {today.isoformat(), tomorrow.isoformat()}
+
+    def is_active(r):
+        status = r.get("status")
+        if status == "open":
+            return True
+        if status == "creating" and r["_date"][:10] in near_term_dates:
+            return True
+        return False
+
+    active = [r for r in windowed if is_active(r)]
+    print(f"Active items (open, plus near-term drafts): {len(active)}")
 
     normalized = normalize(active)
 
