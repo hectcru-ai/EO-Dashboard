@@ -41,6 +41,8 @@
   .nav-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 7px 12px; cursor: pointer; font-size: 15px; }
   .week-label { font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 700; color: var(--accent); min-width: 150px; }
   .today-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 7px 12px; font-size: 14px; cursor: pointer; color: var(--muted); }
+  .filter-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 20px; padding: 7px 14px; font-size: 13.5px; cursor: pointer; color: var(--ink); font-weight: 600; }
+  .filter-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
   .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
   .day-col { background: var(--panel); border-radius: 8px; padding: 12px; min-height: 200px; flex: 1 1 220px; min-width: 220px; scroll-snap-align: start; }
   .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #DCDAD2; }
@@ -108,6 +110,8 @@
     <div class="week-label" id="weekLabel"></div>
     <button class="nav-btn" onclick="changeWeek(7)">›</button>
     <button class="today-btn" onclick="goToday()">This week</button>
+    <div style="flex:1"></div>
+    <button class="filter-btn" id="profFilterBtn" onclick="toggleProfFilter()">🎓 Professor orders only</button>
   </div>
 
   <div class="board" id="board"></div>
@@ -157,6 +161,7 @@ let feedGeneratedAt = null;
 let staffData = {}; // { [cheqroomId]: {status, note, updatedBy, updatedAt} }
 let dayNotes = {}; // { "yyyy-mm-dd": [{id, text, done, addedBy, addedAt}] }
 let weekMonday = getMonday(new Date());
+let professorOnly = false;
 let editingId = null;
 
 // =============================================================================
@@ -362,6 +367,12 @@ function getWeekDays() {
 function render() {
   document.getElementById("weekLabel").textContent = formatRange(weekMonday);
 
+  const btn = document.getElementById("profFilterBtn");
+  if (btn) {
+    btn.classList.toggle("active", professorOnly);
+    btn.textContent = professorOnly ? "🎓 Showing professors only" : "🎓 Professor orders only";
+  }
+
   // If the user is mid-typing into a "add a priority" box when a background
   // refresh fires, capture it so we can restore it after re-rendering —
   // otherwise a full re-render replaces that input with a blank one.
@@ -371,11 +382,15 @@ function render() {
     draft = { id: active.id, value: active.value, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd };
   }
 
-  const orders = feedOrders.map(o => {
+  let orders = feedOrders.map(o => {
     const staff = staffData[o.cheqroomId] || {};
     return { ...o, staffStatus: staff.status || "pending", note: staff.note || "",
              updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null };
   });
+
+  if (professorOnly) {
+    orders = orders.filter(o => (o.gradeLevel || "").toUpperCase().includes("PROFESSOR"));
+  }
 
   const weekDays = getWeekDays();
   const ordersByDay = {};
@@ -498,6 +513,7 @@ function saveNote() {
 // =============================================================================
 function changeWeek(days) { weekMonday = addDays(weekMonday, days); render(); }
 function goToday() { weekMonday = getMonday(new Date()); render(); }
+function toggleProfFilter() { professorOnly = !professorOnly; render(); }
 
 // =============================================================================
 // Boot
