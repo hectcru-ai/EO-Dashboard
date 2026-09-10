@@ -457,14 +457,12 @@ function todoCardHtml(dateIso) {
 }
 
 function cardHtml(o) {
-  const cheqroomLabel = CHEQROOM_STATUS_LABEL[o.cheqroomStatus] || o.cheqroomStatus;
   const isCheckin = o.action === "checkin";
   const approval = approvalBadgeStyle(o.approvalLabel);
   return `
     <div class="card ${isCheckin ? 'checkin' : 'checkout'}">
       <div class="card-top">
         <div class="card-name">${escapeHtml(o.name)}</div>
-        <span class="cheqroom-tag">${escapeHtml(cheqroomLabel)}</span>
       </div>
       ${o.orderName ? `<div class="order-name">${escapeHtml(o.orderName)}</div>` : ""}
       ${o.gradeLevel ? `<div class="grade-badge">🎓 ${escapeHtml(o.gradeLevel)}</div>` : ""}
@@ -491,7 +489,7 @@ function approvalBadgeStyle(label) {
   if (l === "approved") return { color: "#1E7A75", bg: "#E4F3F1" };
   if (l.includes("pending")) return { color: "#B8862E", bg: "#FBF2E1" };
   if (l.includes("training")) return { color: "#5B6470", bg: "#EAECEE" };
-  return { color: "#4B4F55", bg: "#F0EFEC" }; // fallback for any other/unknown label value
+  return null; // unrecognized value (e.g. a raw internal ID) — don't show it at all
 }
 
 function escapeHtml(str) {
