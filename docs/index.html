@@ -72,6 +72,9 @@
   .grade-badge { display: inline-block; font-size: 13px; font-weight: 700; color: #1A1D21; background: rgba(255,255,255,0.85); border: 1px solid rgba(0,0,0,0.12); border-radius: 4px; padding: 2px 8px; margin-top: 5px; }
   .order-name { font-size: 12.5px; font-style: italic; color: #4B4F55; margin-top: 3px; }
   .approval-badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 8px; margin-top: 5px; }
+  .email-approval-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; }
+  .email-approval-badge.approved { color: #1E7A75; background: #E4F3F1; }
+  .email-approval-badge.denied { color: #B23A32; background: #FBEAE8; }
   .card-meta { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #3F444B; margin-top: 5px; }
   .card-note { font-size: 13.5px; color: var(--accent); margin-top: 6px; background: rgba(255,255,255,0.75); border-radius: 4px; padding: 5px 7px; white-space: pre-wrap; }
   select.status-select { width: 100%; margin-top: 9px; border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; background: #fff; color: var(--ink); }
@@ -161,6 +164,7 @@ let feedOrders = [];
 let feedGeneratedAt = null;
 let staffData = {}; // { [cheqroomId]: {status, note, updatedBy, updatedAt} }
 let dayNotes = {}; // { "yyyy-mm-dd": [{id, text, done, addedBy, addedAt}] }
+let emailApprovals = {}; // { "RESERVATION-1234": {decision, professor, receivedAt} } — written by Power Automate
 let weekMonday = getMonday(new Date());
 let professorOnly = false;
 let editingId = null;
@@ -310,6 +314,25 @@ async function fetchDayNotes() {
   render();
 }
 
+// =============================================================================
+// Professor email approvals — this data is written entirely by a Power Automate
+// flow watching the EO's shared mailbox, not by the board. We only ever read it.
+// =============================================================================
+async function fetchEmailApprovals() {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return; // not configured yet
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/emailApprovals.json`);
+    if (!res.ok) throw new Error(`Firebase read returned ${res.status}`);
+    const data = await res.json();
+    emailApprovals = data || {};
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't load email approvals:", err);
+    showFirebaseError(`Can't load email-approval status (${err.message}).`);
+  }
+  render();
+}
+
 async function saveDayNotes(dateIso, items) {
   dayNotes[dateIso] = items;
   render(); // optimistic update
@@ -385,8 +408,10 @@ function render() {
 
   let orders = feedOrders.map(o => {
     const staff = staffData[o.cheqroomId] || {};
+    const emailApproval = emailApprovals[o.reservationNumber] || null;
     return { ...o, staffStatus: staff.status || "pending", note: staff.note || "",
-             updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null };
+             updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null,
+             emailApproval };
   });
 
   if (professorOnly) {
@@ -467,6 +492,7 @@ function cardHtml(o) {
       ${o.orderName ? `<div class="order-name">${escapeHtml(o.orderName)}</div>` : ""}
       ${o.gradeLevel ? `<div class="grade-badge">🎓 ${escapeHtml(o.gradeLevel)}</div>` : ""}
       ${approval ? `<div class="approval-badge" style="color:${approval.color};background:${approval.bg}">${escapeHtml(o.approvalLabel)}</div>` : ""}
+      ${emailApprovalBadgeHtml(o.emailApproval)}
       ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
       ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
       ${o.note ? `<div class="card-note">⚠ ${escapeHtml(o.note)}</div>` : ""}
@@ -479,6 +505,19 @@ function cardHtml(o) {
         <span>${o.updatedBy ? o.updatedBy + " · " : ""}${o.updatedAt ? relTime(o.updatedAt) : ""}</span>
       </div>
     </div>`;
+}
+
+function emailApprovalBadgeHtml(emailApproval) {
+  if (!emailApproval || !emailApproval.decision) return "";
+  const decision = emailApproval.decision.toLowerCase();
+  const prof = emailApproval.professor ? ` — ${escapeHtml(emailApproval.professor)}` : "";
+  if (decision === "approved") {
+    return `<div class="email-approval-badge approved">✅ Approved by email${prof}</div>`;
+  }
+  if (decision === "denied") {
+    return `<div class="email-approval-badge denied">❌ Denied by email${prof}</div>`;
+  }
+  return "";
 }
 
 function approvalBadgeStyle(label) {
@@ -534,9 +573,11 @@ renderInitials();
 fetchFeed();
 fetchStaffData();
 fetchDayNotes();
+fetchEmailApprovals();
 setInterval(fetchFeed, 5 * 60 * 1000);
 setInterval(fetchStaffData, 30 * 1000); // pick up other staff's updates every 30s
 setInterval(fetchDayNotes, 30 * 1000); // pick up other staff's priority-list edits every 30s
+setInterval(fetchEmailApprovals, 30 * 1000); // pick up new professor email replies every 30s
 </script>
 </body>
 </html>
