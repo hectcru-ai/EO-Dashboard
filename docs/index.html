@@ -75,6 +75,17 @@
   .email-approval-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; }
   .email-approval-badge.approved { color: #1E7A75; background: #E4F3F1; }
   .email-approval-badge.denied { color: #B23A32; background: #FBEAE8; }
+  .coi-card-badge { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+  .coi-unassign { border: none; background: none; color: inherit; opacity: 0.65; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0; font-weight: 500; }
+  .coi-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
+  .coi-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .coi-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
+  .coi-item:first-of-type { border-top: none; }
+  .coi-item-badge { font-weight: 700; border-radius: 4px; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
+  .coi-item-badge.approved { color: #1E7A75; background: #E4F3F1; }
+  .coi-item-badge.denied { color: #B23A32; background: #FBEAE8; }
+  .coi-item-meta { color: var(--muted); flex: 1; min-width: 160px; }
+  .coi-assign-select { border: 1px solid #D3D1CB; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; max-width: 100%; }
   .card-meta { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #3F444B; margin-top: 5px; }
   .card-note { font-size: 13.5px; color: var(--accent); margin-top: 6px; background: rgba(255,255,255,0.75); border-radius: 4px; padding: 5px 7px; white-space: pre-wrap; }
   select.status-select { width: 100%; margin-top: 9px; border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; background: #fff; color: var(--ink); }
@@ -108,6 +119,8 @@
     <span id="syncText" class="sync-text">Loading…</span>
   </div>
   <div class="sync-note">ℹ️ Changes made in Cheqroom (new orders, status updates, check-ins) can take up to <strong>~15 minutes</strong> to appear here — this page pulls from Cheqroom on a timer, not instantly.</div>
+
+  <div class="coi-panel" id="coiPanel" style="display:none;"></div>
 
   <div class="week-nav">
     <button class="nav-btn" onclick="changeWeek(-7)">‹</button>
@@ -165,6 +178,8 @@ let feedGeneratedAt = null;
 let staffData = {}; // { [cheqroomId]: {status, note, updatedBy, updatedAt} }
 let dayNotes = {}; // { "yyyy-mm-dd": [{id, text, done, addedBy, addedAt}] }
 let emailApprovals = {}; // { "RESERVATION-1234": {decision, professor, receivedAt} } — written by Power Automate
+let coiApprovals = {}; // { [pushId]: {name, dateIso, status, subject, receivedAt, assignedCheqroomId} } — COI emails have no
+                        // reservation number, so each entry starts unassigned and staff link it to an order by hand in the UI
 let weekMonday = getMonday(new Date());
 let professorOnly = false;
 let editingId = null;
@@ -333,6 +348,60 @@ async function fetchEmailApprovals() {
   render();
 }
 
+// =============================================================================
+// COI approvals — written by a second Power Automate flow watching the same
+// shared mailbox for Admin Services "APPROVED/DENIED: ..." emails. Those emails
+// carry no reservation number (only a name + date in the subject line), so
+// every entry lands here unassigned and staff manually link it to an order.
+// =============================================================================
+async function fetchCoiApprovals() {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return; // not configured yet
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/coiApprovals.json`);
+    if (!res.ok) throw new Error(`Firebase read returned ${res.status}`);
+    const data = await res.json();
+    coiApprovals = data || {};
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't load COI approvals:", err);
+    showFirebaseError(`Can't load COI approval status (${err.message}).`);
+  }
+  render();
+}
+
+async function assignCoi(entryId, cheqroomId) {
+  if (!cheqroomId) return; // placeholder option selected
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/coiApprovals/${entryId}.json`, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedCheqroomId: cheqroomId }),
+    });
+    if (!res.ok) throw new Error(`Firebase write returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't assign COI approval:", err);
+    showFirebaseError(`That assignment didn't save (${err.message}).`);
+  }
+  await fetchCoiApprovals();
+}
+
+async function unassignCoi(entryId) {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/coiApprovals/${entryId}.json`, {
+      method: "PATCH",
+      body: JSON.stringify({ assignedCheqroomId: null }),
+    });
+    if (!res.ok) throw new Error(`Firebase write returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't unassign COI approval:", err);
+    showFirebaseError(`Undoing that assignment didn't save (${err.message}).`);
+  }
+  await fetchCoiApprovals();
+}
+
 async function saveDayNotes(dateIso, items) {
   dayNotes[dateIso] = items;
   render(); // optimistic update
@@ -406,12 +475,26 @@ function render() {
     draft = { id: active.id, value: active.value, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd };
   }
 
+  // Split COI entries into ones already linked to an order vs. ones still
+  // needing a staff member to pick the right order by hand.
+  const coiByCheqroomId = {};
+  const unassignedCoi = [];
+  Object.entries(coiApprovals).forEach(([entryId, entry]) => {
+    if (entry.assignedCheqroomId) {
+      coiByCheqroomId[entry.assignedCheqroomId] = { ...entry, entryId };
+    } else {
+      unassignedCoi.push({ ...entry, entryId });
+    }
+  });
+  unassignedCoi.sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0));
+
   let orders = feedOrders.map(o => {
     const staff = staffData[o.cheqroomId] || {};
     const emailApproval = emailApprovals[o.reservationNumber] || null;
+    const coiApproval = coiByCheqroomId[o.cheqroomId] || null;
     return { ...o, staffStatus: staff.status || "pending", note: staff.note || "",
              updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null,
-             emailApproval };
+             emailApproval, coiApproval };
   });
 
   if (professorOnly) {
@@ -451,6 +534,19 @@ function render() {
         </div>
       </div>`;
   }).join("");
+
+  // unassigned COI approvals panel (shown regardless of which week is selected)
+  const coiPanelEl = document.getElementById("coiPanel");
+  if (unassignedCoi.length === 0) {
+    coiPanelEl.style.display = "none";
+    coiPanelEl.innerHTML = "";
+  } else {
+    coiPanelEl.style.display = "block";
+    coiPanelEl.innerHTML = `
+      <div class="coi-panel-title">📋 Unassigned COI approvals (${unassignedCoi.length})</div>
+      ${unassignedCoi.map(entry => coiUnassignedItemHtml(entry)).join("")}
+    `;
+  }
 
   // restore whatever was being typed, and put the cursor back where it was
   if (draft) {
@@ -493,6 +589,7 @@ function cardHtml(o) {
       ${o.gradeLevel ? `<div class="grade-badge">🎓 ${escapeHtml(o.gradeLevel)}</div>` : ""}
       ${approval ? `<div class="approval-badge" style="color:${approval.color};background:${approval.bg}">${escapeHtml(o.approvalLabel)}</div>` : ""}
       ${emailApprovalBadgeHtml(o.emailApproval)}
+      ${coiApprovalBadgeHtml(o.coiApproval)}
       ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
       ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
       ${o.note ? `<div class="card-note">⚠ ${escapeHtml(o.note)}</div>` : ""}
@@ -518,6 +615,38 @@ function emailApprovalBadgeHtml(emailApproval) {
     return `<div class="email-approval-badge denied">❌ Denied by email${prof}</div>`;
   }
   return "";
+}
+
+function coiApprovalBadgeHtml(coiApproval) {
+  if (!coiApproval) return "";
+  const isDenied = coiApproval.status === "denied";
+  return `
+    <div class="email-approval-badge ${isDenied ? "denied" : "approved"} coi-card-badge">
+      <span>${isDenied ? "❌ COI denied" : "✅ COI approved"}</span>
+      <button class="coi-unassign" onclick="unassignCoi('${coiApproval.entryId}')" title="Undo this assignment">unassign</button>
+    </div>`;
+}
+
+function coiUnassignedItemHtml(entry) {
+  // Prefer orders on the same date the COI email named; if none line up
+  // (typo, date mismatch, etc.) fall back to showing every order so staff
+  // can still find and assign it manually.
+  const sameDate = feedOrders.filter(o => o.date === entry.dateIso);
+  const candidates = (sameDate.length ? sameDate : feedOrders)
+    .slice()
+    .sort((a, b) => (a.date + (a.time || "")).localeCompare(b.date + (b.time || "")));
+  const options = candidates
+    .map(o => `<option value="${o.cheqroomId}">${escapeHtml(o.name)} — ${escapeHtml(o.orderName || o.items || "")} (${o.date}${o.time ? " " + o.time : ""})</option>`)
+    .join("");
+  return `
+    <div class="coi-item">
+      <span class="coi-item-badge ${entry.status === "denied" ? "denied" : "approved"}">${entry.status === "denied" ? "❌ Denied" : "✅ Approved"}</span>
+      <span class="coi-item-meta">${escapeHtml(entry.name || "Unknown")} · ${escapeHtml(entry.dateIso || "?")}${sameDate.length === 0 ? " (no same-day order found — showing all orders)" : ""}</span>
+      <select class="coi-assign-select" onchange="assignCoi('${entry.entryId}', this.value)">
+        <option value="">Assign to order…</option>
+        ${options}
+      </select>
+    </div>`;
 }
 
 function approvalBadgeStyle(label) {
@@ -574,10 +703,12 @@ fetchFeed();
 fetchStaffData();
 fetchDayNotes();
 fetchEmailApprovals();
+fetchCoiApprovals();
 setInterval(fetchFeed, 5 * 60 * 1000);
 setInterval(fetchStaffData, 30 * 1000); // pick up other staff's updates every 30s
 setInterval(fetchDayNotes, 30 * 1000); // pick up other staff's priority-list edits every 30s
 setInterval(fetchEmailApprovals, 30 * 1000); // pick up new professor email replies every 30s
+setInterval(fetchCoiApprovals, 30 * 1000); // pick up new COI approvals, and assignments made on other devices, every 30s
 </script>
 </body>
 </html>
