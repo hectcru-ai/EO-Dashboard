@@ -607,12 +607,12 @@ function cardHtml(o) {
 function emailApprovalBadgeHtml(emailApproval) {
   if (!emailApproval || !emailApproval.decision) return "";
   const decision = emailApproval.decision.toLowerCase();
-  const prof = emailApproval.professor ? ` — ${escapeHtml(emailApproval.professor)}` : "";
+  const prof = emailApproval.professor ? escapeHtml(emailApproval.professor) : "";
   if (decision === "approved") {
-    return `<div class="email-approval-badge approved">✅ Approved by email${prof}</div>`;
+    return `<div class="email-approval-badge approved">✅ ${prof}</div>`;
   }
   if (decision === "denied") {
-    return `<div class="email-approval-badge denied">❌ Denied by email${prof}</div>`;
+    return `<div class="email-approval-badge denied">❌ ${prof}</div>`;
   }
   return "";
 }
