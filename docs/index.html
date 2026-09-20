@@ -162,14 +162,16 @@ const FIREBASE_DB_URL = "https://eo-dashboard-dc334-default-rtdb.firebaseio.com/
 // Status model
 // =============================================================================
 const STATUSES = [
-  { id: "pending",  label: "Pending approval", color: "#B8862E", bg: "#FBF2E1" },
-  { id: "approved", label: "Approved",         color: "#3D5A9E", bg: "#EBEFF9" },
   { id: "building", label: "Building",         color: "#7A4FA6", bg: "#F1E9F6" },
   { id: "built",    label: "Built — ready",    color: "#1E7A75", bg: "#E4F3F1" },
   { id: "out",      label: "Checked out",      color: "#5B6470", bg: "#EAECEE" },
   { id: "in",       label: "Needs check in",   color: "#357A3E", bg: "#E7F3E8" },
 ];
 const statusById = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
+// Orders saved under the old 6-status model may still carry "pending" or
+// "approved" in Firebase — map those forward so old data doesn't show up
+// as an unselected/blank dropdown.
+const LEGACY_STATUS_MAP = { pending: "building", approved: "building" };
 const CHEQROOM_STATUS_LABEL = {
   creating: "Draft — gear may change", open: "Open", closed: "Closed",
   closed_manually: "Closed (manual)", cancelled: "Cancelled", archived: "Archived",
@@ -498,7 +500,9 @@ function render() {
     const staff = staffData[o.cheqroomId] || {};
     const emailApproval = emailApprovals[o.reservationNumber] || null;
     const coiApproval = coiByCheqroomId[o.cheqroomId] || null;
-    return { ...o, staffStatus: staff.status || "pending", note: staff.note || "",
+    const rawStatus = staff.status || "building";
+    const staffStatus = LEGACY_STATUS_MAP[rawStatus] || rawStatus;
+    return { ...o, staffStatus, note: staff.note || "",
              updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null,
              emailApproval, coiApproval };
   });
