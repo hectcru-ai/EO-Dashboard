@@ -80,6 +80,7 @@
   .email-approval-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; }
   .email-approval-badge.approved { color: #1E7A75; background: #E4F3F1; }
   .email-approval-badge.denied { color: #B23A32; background: #FBEAE8; }
+  .permit-waived-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; color: #1E7A75; background: #E4F3F1; }
   .coi-card-badge { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .coi-unassign { border: none; background: none; color: inherit; opacity: 0.65; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0; font-weight: 500; }
   .coi-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
@@ -596,6 +597,7 @@ function cardHtml(o) {
       ${o.gradeLevel ? `<div class="grade-badge${isProfessor ? ' professor' : ''}">🎓 ${escapeHtml(o.gradeLevel)}</div>` : ""}
       ${approval ? `<div class="approval-badge" style="color:${approval.color};background:${approval.bg}">${escapeHtml(o.approvalLabel)}</div>` : ""}
       ${emailApprovalBadgeHtml(o.emailApproval)}
+      ${permitWaivedBadgeHtml(o.emailApproval)}
       ${coiApprovalBadgeHtml(o.coiApproval)}
       ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
       ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
@@ -622,6 +624,11 @@ function emailApprovalBadgeHtml(emailApproval) {
     return `<div class="email-approval-badge denied">❌ ${prof}</div>`;
   }
   return "";
+}
+
+function permitWaivedBadgeHtml(emailApproval) {
+  if (!emailApproval || !emailApproval.permitWaived) return "";
+  return `<div class="permit-waived-badge">✅ In-class</div>`;
 }
 
 function coiApprovalBadgeHtml(coiApproval) {
