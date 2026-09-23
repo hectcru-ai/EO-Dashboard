@@ -131,8 +131,6 @@
   </div>
   <div class="sync-note">ℹ️ Changes made in Cheqroom (new orders, status updates, check-ins) can take up to <strong>~15 minutes</strong> to appear here — this page pulls from Cheqroom on a timer, not instantly.</div>
 
-  <div class="overdue-panel" id="overduePanel" style="display:none;"></div>
-
   <div class="coi-panel" id="coiPanel" style="display:none;"></div>
 
   <div class="week-nav">
@@ -145,6 +143,8 @@
   </div>
 
   <div class="board" id="board"></div>
+
+  <div class="overdue-panel" id="overduePanel" style="display:none;"></div>
 
   <div class="modal-overlay" id="noteModal">
     <div class="modal">
@@ -536,7 +536,7 @@ function render() {
   // surface regardless of the professor-only filter or which week is displayed.
   const overdueCheckins = allOrders
     .filter(o => o.action === "checkin" && o.cheqroomStatus === "open" && o.date && o.date < todayIso)
-    .sort((a, b) => a.date.localeCompare(b.date)); // most overdue first
+    .sort((a, b) => b.date.localeCompare(a.date)); // most recently overdue first, oldest at the bottom
 
   let orders = allOrders;
   if (professorOnly) {
