@@ -149,16 +149,26 @@ def within_window(date_str, days_ahead=56):
     return now - timedelta(days=1) <= start <= now + timedelta(days=days_ahead)
 
 
-def is_overdue_open_checkin(item):
+def is_overdue_open_checkin(item, max_days_overdue=30):
     """
     A check-in card (reservation toDate or order due date) whose item is still
-    'open' in Cheqroom hasn't actually been returned yet, no matter how far past
-    its date it is. Previously these silently fell out of the 8-week window once
-    more than a day overdue — "out of sight, out of mind" for staff. These should
-    keep showing until Cheqroom itself marks the item closed (fully checked in),
-    regardless of how many days/weeks overdue that takes.
+    'open' in Cheqroom hasn't actually been returned yet. Previously these
+    silently fell out of the 8-week window once more than a day overdue —
+    "out of sight, out of mind" for staff. These now keep showing for up to
+    `max_days_overdue` days past due, even though within_window's normal cutoff
+    would otherwise drop them after 1 day — but not indefinitely, since anything
+    older than that is more likely stale/abandoned Cheqroom data than something
+    staff still need surfaced every day.
     """
-    return item.get("_action") == "checkin" and item.get("status") == "open"
+    if item.get("_action") != "checkin" or item.get("status") != "open":
+        return False
+    date_str = item.get("_date") or ""
+    try:
+        due = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+    except ValueError:
+        return False
+    now = datetime.now(timezone.utc)
+    return now - timedelta(days=max_days_overdue) <= due < now
 
 
 def format_time(hh_mm):
