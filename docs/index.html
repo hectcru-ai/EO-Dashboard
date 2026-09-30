@@ -243,6 +243,19 @@ function relTime(ts) {
   if (hr < 24) return `${hr}h ago`;
   return `${Math.round(hr/24)}d ago`;
 }
+function timeSortValue(timeStr) {
+  // Cards store a display-formatted time like "1:30 PM" or "10:00 AM" — comparing
+  // those as plain text doesn't reliably sort chronologically (a mix of digits,
+  // ":", a space, and AM/PM letters doesn't compare the way you'd expect). Convert
+  // to minutes-since-midnight instead, so sorting is by actual time of day.
+  if (!timeStr) return -1; // no time set — keep these first, same as before
+  const m = timeStr.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+  if (!m) return -1; // unrecognized format — don't let it break the sort
+  let hour = parseInt(m[1], 10) % 12;
+  const minute = parseInt(m[2], 10);
+  if (/pm/i.test(m[3])) hour += 12;
+  return hour * 60 + minute;
+}
 
 // =============================================================================
 // Initials (per-device, plain localStorage — fine since it's just a personal label)
@@ -571,7 +584,7 @@ function render() {
   const ordersByDay = {};
   weekDays.forEach(d => ordersByDay[toISODate(d.date)] = []);
   orders.forEach(o => { if (ordersByDay[o.date]) ordersByDay[o.date].push(o); });
-  Object.values(ordersByDay).forEach(list => list.sort((a, b) => (a.time || "").localeCompare(b.time || "")));
+  Object.values(ordersByDay).forEach(list => list.sort((a, b) => timeSortValue(a.time) - timeSortValue(b.time)));
 
   // board
   document.getElementById("board").innerHTML = weekDays.map((d,i) => {
