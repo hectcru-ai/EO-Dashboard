@@ -430,6 +430,28 @@ async function unassignCoi(entryId) {
   await fetchCoiApprovals();
 }
 
+async function removeCoi(entryId) {
+  // Permanent — e.g. a COI approval for a reservation that was never actually
+  // finalized in Cheqroom, so there's nothing it could ever be assigned to.
+  const entry = coiApprovals[entryId] || {};
+  const label = `${entry.name || "Unknown"} · ${entry.dateIso || "?"}\n${entry.subject || ""}`;
+  if (!confirm(`Remove this COI approval entry permanently?\n\n${label}\n\nThis can't be undone from the board — it'll be gone from Firebase.`)) {
+    return;
+  }
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/coiApprovals/${entryId}.json`, {
+      method: "DELETE",
+    });
+    if (!res.ok) throw new Error(`Firebase delete returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't remove COI approval:", err);
+    showFirebaseError(`That removal didn't save (${err.message}).`);
+  }
+  await fetchCoiApprovals();
+}
+
 async function saveDayNotes(dateIso, items) {
   dayNotes[dateIso] = items;
   render(); // optimistic update
@@ -725,6 +747,7 @@ function coiUnassignedItemHtml(entry) {
           <option value="">Assign to order…</option>
           ${options}
         </select>
+        <button class="coi-unassign" onclick="removeCoi('${entry.entryId}')" title="Permanently delete this entry — use when there's no reservation to assign it to">remove</button>
       </div>
       ${entry.subject ? `<div class="coi-item-subject">✉️ ${escapeHtml(entry.subject)}</div>` : ""}
     </div>`;
