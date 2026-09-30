@@ -85,8 +85,10 @@
   .coi-unassign { border: none; background: none; color: inherit; opacity: 0.65; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0; font-weight: 500; }
   .coi-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
   .coi-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
-  .coi-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid var(--line); font-size: 13.5px; }
-  .coi-item:first-of-type { border-top: none; }
+  .coi-item-row { border-top: 1px solid var(--line); padding: 7px 0; }
+  .coi-item-row:first-of-type { border-top: none; }
+  .coi-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13.5px; }
+  .coi-item-subject { font-size: 12px; color: var(--muted); margin-top: 4px; word-break: break-word; }
   .coi-item-badge { font-weight: 700; border-radius: 4px; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
   .coi-item-badge.approved { color: #1E7A75; background: #E4F3F1; }
   .coi-item-badge.denied { color: #B23A32; background: #FBEAE8; }
@@ -715,13 +717,16 @@ function coiUnassignedItemHtml(entry) {
     .map(o => `<option value="${staffKey(o)}">${escapeHtml(o.name)} — ${escapeHtml(o.orderName || o.items || "")} (${o.date}${o.time ? " " + o.time : ""})</option>`)
     .join("");
   return `
-    <div class="coi-item">
-      <span class="coi-item-badge ${entry.status === "denied" ? "denied" : "approved"}">${entry.status === "denied" ? "❌ Denied" : "✅ Approved"}</span>
-      <span class="coi-item-meta">${escapeHtml(entry.name || "Unknown")} · ${escapeHtml(entry.dateIso || "?")}${sameDate.length === 0 ? " (no same-day order found — showing all orders)" : ""}</span>
-      <select class="coi-assign-select" onchange="assignCoi('${entry.entryId}', this.value)">
-        <option value="">Assign to order…</option>
-        ${options}
-      </select>
+    <div class="coi-item-row">
+      <div class="coi-item">
+        <span class="coi-item-badge ${entry.status === "denied" ? "denied" : "approved"}">${entry.status === "denied" ? "❌ Denied" : "✅ Approved"}</span>
+        <span class="coi-item-meta">${escapeHtml(entry.name || "Unknown")} · ${escapeHtml(entry.dateIso || "?")}${sameDate.length === 0 ? " (no same-day order found — showing all orders)" : ""}</span>
+        <select class="coi-assign-select" onchange="assignCoi('${entry.entryId}', this.value)">
+          <option value="">Assign to order…</option>
+          ${options}
+        </select>
+      </div>
+      ${entry.subject ? `<div class="coi-item-subject">✉️ ${escapeHtml(entry.subject)}</div>` : ""}
     </div>`;
 }
 
