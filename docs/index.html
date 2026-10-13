@@ -104,6 +104,11 @@
   select.status-select { width: 100%; margin-top: 9px; border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; background: #fff; color: var(--ink); }
   .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 11.5px; color: #4B4F55; }
   .edit-link { border: none; background: none; color: #2C4A8C; cursor: pointer; font-size: 13px; padding: 0; font-weight: 600; }
+  .card-footer-links { display: flex; align-items: center; gap: 10px; }
+  .hide-link { color: var(--muted) !important; opacity: 0.8; }
+  .hidden-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
+  .hidden-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 8px; color: var(--muted); }
+  .hidden-item-label { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(26,29,33,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
   .modal-overlay.open { display: flex; }
   .modal { background: #fff; border-radius: 8px; padding: 20px; width: 100%; max-width: 380px; }
@@ -134,6 +139,10 @@
   <div class="sync-note">ℹ️ Changes made in Cheqroom (new orders, status updates, check-ins) can take up to <strong>~15 minutes</strong> to appear here — this page pulls from Cheqroom on a timer, not instantly.</div>
 
   <div class="coi-panel" id="coiPanel" style="display:none;"></div>
+
+  <div class="coi-panel" id="dismissedCoiPanel" style="display:none;"></div>
+
+  <div class="hidden-panel" id="hiddenPanel" style="display:none;"></div>
 
   <div class="week-nav">
     <button class="nav-btn" onclick="changeWeek(-7)">‹</button>
@@ -176,6 +185,7 @@ const STATUSES = [
   { id: "built",    label: "Built — ready",    color: "#1E7A75", bg: "#E4F3F1" },
   { id: "out",      label: "Checked out",      color: "#5B6470", bg: "#EAECEE" },
   { id: "in",       label: "Needs check in",   color: "#357A3E", bg: "#E7F3E8" },
+  { id: "checked_in", label: "Checked In",     color: "#2C4A8C", bg: "#E8EDF7" },
 ];
 const statusById = (id) => STATUSES.find(s => s.id === id) || STATUSES[0];
 // Orders saved under the old 6-status model may still carry "pending" or
@@ -443,6 +453,49 @@ async function unassignCoi(entryId) {
   await fetchCoiApprovals();
 }
 
+async function hideOrder(orderKey) {
+  if (!confirm("Hide this order from the board?\n\nIt'll move to the \"🙈 Hidden orders\" panel at the bottom, where you can unhide it later if needed.")) {
+    return;
+  }
+  await updateStaffField(orderKey, { hidden: true });
+}
+
+async function unhideOrder(orderKey) {
+  await updateStaffField(orderKey, { hidden: false });
+}
+
+async function dismissCoi(entryId) {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/coiApprovals/${entryId}.json`, {
+      method: "PATCH",
+      body: JSON.stringify({ dismissed: true }),
+    });
+    if (!res.ok) throw new Error(`Firebase write returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't dismiss COI approval:", err);
+    showFirebaseError(`That didn't save (${err.message}).`);
+  }
+  await fetchCoiApprovals();
+}
+
+async function restoreCoi(entryId) {
+  if (FIREBASE_DB_URL.startsWith("REPLACE_")) return;
+  try {
+    const res = await fetch(`${FIREBASE_DB_URL}/coiApprovals/${entryId}.json`, {
+      method: "PATCH",
+      body: JSON.stringify({ dismissed: false }),
+    });
+    if (!res.ok) throw new Error(`Firebase write returned ${res.status}`);
+    document.getElementById("firebaseError")?.remove();
+  } catch (err) {
+    console.error("Couldn't restore COI approval:", err);
+    showFirebaseError(`That didn't save (${err.message}).`);
+  }
+  await fetchCoiApprovals();
+}
+
 async function removeCoi(entryId) {
   // Permanent — e.g. a COI approval for a reservation that was never actually
   // finalized in Cheqroom, so there's nothing it could ever be assigned to.
@@ -542,17 +595,24 @@ function render() {
   // needing a staff member to pick the right order by hand. Keyed by reservation
   // number now (see staffKey) — old entries may still carry assignedCheqroomId
   // from before this fix, so we read that as a fallback but never write it again.
+  // Unassigned entries further split into active vs. dismissed — dismissing is a
+  // reversible "get this out of my way for now" action, separate from the
+  // permanent "remove" delete.
   const coiByOrderKey = {};
   const unassignedCoi = [];
+  const dismissedCoi = [];
   Object.entries(coiApprovals).forEach(([entryId, entry]) => {
     const assignedKey = entry.assignedReservationNumber || entry.assignedCheqroomId;
     if (assignedKey) {
       coiByOrderKey[assignedKey] = { ...entry, entryId };
+    } else if (entry.dismissed) {
+      dismissedCoi.push({ ...entry, entryId });
     } else {
       unassignedCoi.push({ ...entry, entryId });
     }
   });
   unassignedCoi.sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0));
+  dismissedCoi.sort((a, b) => (b.receivedAt || 0) - (a.receivedAt || 0));
 
   const todayIso = toISODate(new Date());
 
@@ -565,17 +625,25 @@ function render() {
     const staffStatus = LEGACY_STATUS_MAP[rawStatus] || rawStatus;
     return { ...o, staffStatus, note: staff.note || "",
              updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null,
-             emailApproval, coiApproval };
+             emailApproval, coiApproval, hidden: !!staff.hidden };
   });
+
+  // Manually hidden — a staff override for orders that linger on the board despite
+  // being closed/deleted in Cheqroom (usually a sync delay or Cheqroom-side lag,
+  // not something the sync script itself can force to resolve faster). Hidden
+  // orders are fully excluded from the normal board and overdue panel, but kept
+  // reviewable/reversible in their own panel rather than silently discarded.
+  const hiddenOrders = allOrders.filter(o => o.hidden);
+  const visibleOrders = allOrders.filter(o => !o.hidden);
 
   // Overdue check-ins — still "open" in Cheqroom past their due date, meaning
   // they haven't actually been returned. Computed from the full list so they
   // surface regardless of the professor-only filter or which week is displayed.
-  const overdueCheckins = allOrders
+  const overdueCheckins = visibleOrders
     .filter(o => o.action === "checkin" && o.cheqroomStatus === "open" && o.date && o.date < todayIso)
     .sort((a, b) => b.date.localeCompare(a.date)); // most recently overdue first, oldest at the bottom
 
-  let orders = allOrders;
+  let orders = visibleOrders;
   if (professorOnly) {
     orders = orders.filter(o => (o.gradeLevel || "").toUpperCase().includes("PROFESSOR"));
   }
@@ -641,6 +709,35 @@ function render() {
     `;
   }
 
+  // dismissed COI approvals — reversibly tucked away, not deleted (see "remove" for that)
+  const dismissedCoiPanelEl = document.getElementById("dismissedCoiPanel");
+  if (dismissedCoi.length === 0) {
+    dismissedCoiPanelEl.style.display = "none";
+    dismissedCoiPanelEl.innerHTML = "";
+  } else {
+    dismissedCoiPanelEl.style.display = "block";
+    dismissedCoiPanelEl.innerHTML = `
+      <div class="coi-panel-title">🙈 Dismissed COI approvals (${dismissedCoi.length})</div>
+      ${dismissedCoi.map(entry => dismissedCoiItemHtml(entry)).join("")}
+    `;
+  }
+
+  // hidden orders panel — manually hidden by staff (e.g. lingering despite being
+  // closed/deleted in Cheqroom); kept reviewable/reversible rather than discarded
+  const hiddenPanelEl = document.getElementById("hiddenPanel");
+  if (hiddenOrders.length === 0) {
+    hiddenPanelEl.style.display = "none";
+    hiddenPanelEl.innerHTML = "";
+  } else {
+    hiddenPanelEl.style.display = "block";
+    hiddenPanelEl.innerHTML = `
+      <div class="hidden-panel-title">🙈 Hidden orders (${hiddenOrders.length})</div>
+      <div class="card-stack">
+        ${hiddenOrders.map(o => hiddenItemHtml(o)).join("")}
+      </div>
+    `;
+  }
+
   // restore whatever was being typed, and put the cursor back where it was
   if (draft) {
     const el = document.getElementById(draft.id);
@@ -694,7 +791,12 @@ function cardHtml(o) {
         ${STATUSES.map(st => `<option value="${st.id}" ${st.id===o.staffStatus?"selected":""}>${st.label}</option>`).join("")}
       </select>
       <div class="card-footer">
-        <button class="edit-link" onclick="openNoteModal('${staffKey(o)}')">Add note</button>
+        <div class="card-footer-links">
+          <button class="edit-link" onclick="openNoteModal('${staffKey(o)}')">Add note</button>
+          ${o.hidden
+            ? `<button class="edit-link hide-link" onclick="unhideOrder('${staffKey(o)}')">Unhide</button>`
+            : `<button class="edit-link hide-link" onclick="hideOrder('${staffKey(o)}')">Hide</button>`}
+        </div>
         <span>${o.updatedBy ? o.updatedBy + " · " : ""}${o.updatedAt ? relTime(o.updatedAt) : ""}</span>
       </div>
     </div>`;
@@ -730,6 +832,14 @@ function overdueItemHtml(o) {
     </div>`;
 }
 
+function hiddenItemHtml(o) {
+  return `
+    <div class="overdue-item">
+      <div class="hidden-item-label">🙈 Hidden from the board — was ${o.date}${o.time ? " " + o.time : ""}</div>
+      ${cardHtml(o)}
+    </div>`;
+}
+
 function coiApprovalBadgeHtml(coiApproval) {
   if (!coiApproval) return "";
   const isDenied = coiApproval.status === "denied";
@@ -760,7 +870,20 @@ function coiUnassignedItemHtml(entry) {
           <option value="">Assign to order…</option>
           ${options}
         </select>
+        <button class="coi-unassign" onclick="dismissCoi('${entry.entryId}')" title="Tuck this away for now — reversible, nothing is deleted">hide</button>
         <button class="coi-unassign" onclick="removeCoi('${entry.entryId}')" title="Permanently delete this entry — use when there's no reservation to assign it to">remove</button>
+      </div>
+      ${entry.subject ? `<div class="coi-item-subject">✉️ ${escapeHtml(entry.subject)}</div>` : ""}
+    </div>`;
+}
+
+function dismissedCoiItemHtml(entry) {
+  return `
+    <div class="coi-item-row">
+      <div class="coi-item">
+        <span class="coi-item-badge ${entry.status === "denied" ? "denied" : "approved"}">${entry.status === "denied" ? "❌ Denied" : "✅ Approved"}</span>
+        <span class="coi-item-meta">${escapeHtml(entry.name || "Unknown")} · ${escapeHtml(entry.dateIso || "?")}</span>
+        <button class="coi-unassign" onclick="restoreCoi('${entry.entryId}')" title="Bring this back to the Unassigned COI approvals panel">unhide</button>
       </div>
       ${entry.subject ? `<div class="coi-item-subject">✉️ ${escapeHtml(entry.subject)}</div>` : ""}
     </div>`;
