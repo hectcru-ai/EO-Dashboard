@@ -84,7 +84,10 @@
   .coi-card-badge { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .coi-unassign { border: none; background: none; color: inherit; opacity: 0.65; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0; font-weight: 500; }
   .coi-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
-  .coi-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 6px; }
+  .coi-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; }
+  .panel-header { display: flex; align-items: center; gap: 7px; cursor: pointer; user-select: none; margin-bottom: 8px; }
+  .panel-header:hover { opacity: 0.85; }
+  .panel-toggle-arrow { font-size: 11px; color: var(--muted); width: 10px; flex-shrink: 0; }
   .coi-item-row { border-top: 1px solid var(--line); padding: 7px 0; }
   .coi-item-row:first-of-type { border-top: none; }
   .coi-item { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; font-size: 13.5px; }
@@ -95,7 +98,7 @@
   .coi-item-meta { color: var(--muted); flex: 1; min-width: 160px; }
   .coi-assign-select { border: 1px solid #D3D1CB; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; max-width: 100%; }
   .overdue-panel { background: var(--card); border: 1px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
-  .overdue-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 8px; color: var(--accent); }
+  .overdue-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; color: var(--accent); }
   .overdue-item { margin-bottom: 10px; }
   .overdue-item:last-child { margin-bottom: 0; }
   .overdue-days { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--accent); margin-bottom: 4px; }
@@ -107,7 +110,7 @@
   .card-footer-links { display: flex; align-items: center; gap: 10px; }
   .hide-link { color: var(--muted) !important; opacity: 0.8; }
   .hidden-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
-  .hidden-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; margin-bottom: 8px; color: var(--muted); }
+  .hidden-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; color: var(--muted); }
   .hidden-item-label { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
   .modal-overlay { position: fixed; inset: 0; background: rgba(26,29,33,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
   .modal-overlay.open { display: flex; }
@@ -265,6 +268,38 @@ function timeSortValue(timeStr) {
   const minute = parseInt(m[2], 10);
   if (/pm/i.test(m[3])) hour += 12;
   return hour * 60 + minute;
+}
+
+// =============================================================================
+// Collapsible panels (per-device, plain localStorage) — Overdue/COI/Hidden lists
+// =============================================================================
+let collapsedPanels = {};
+try {
+  collapsedPanels = JSON.parse(localStorage.getItem("eo-collapsed-panels") || "{}");
+} catch (err) {
+  collapsedPanels = {};
+}
+function togglePanelCollapse(key) {
+  collapsedPanels[key] = !collapsedPanels[key];
+  localStorage.setItem("eo-collapsed-panels", JSON.stringify(collapsedPanels));
+  render();
+}
+function renderCollapsiblePanel(elId, key, count, titleHtml, bodyHtml) {
+  const el = document.getElementById(elId);
+  if (count === 0) {
+    el.style.display = "none";
+    el.innerHTML = "";
+    return;
+  }
+  el.style.display = "block";
+  const collapsed = !!collapsedPanels[key];
+  el.innerHTML = `
+    <div class="panel-header" onclick="togglePanelCollapse('${key}')">
+      <span class="panel-toggle-arrow">${collapsed ? "▸" : "▾"}</span>
+      ${titleHtml}
+    </div>
+    ${collapsed ? "" : bodyHtml}
+  `;
 }
 
 // =============================================================================
@@ -682,61 +717,33 @@ function render() {
   }).join("");
 
   // overdue check-ins panel (shown regardless of which week is selected)
-  const overduePanelEl = document.getElementById("overduePanel");
-  if (overdueCheckins.length === 0) {
-    overduePanelEl.style.display = "none";
-    overduePanelEl.innerHTML = "";
-  } else {
-    overduePanelEl.style.display = "block";
-    overduePanelEl.innerHTML = `
-      <div class="overdue-panel-title">⚠️ Overdue check-ins (${overdueCheckins.length})</div>
-      <div class="card-stack">
-        ${overdueCheckins.map(o => overdueItemHtml(o)).join("")}
-      </div>
-    `;
-  }
+  renderCollapsiblePanel(
+    "overduePanel", "overdue", overdueCheckins.length,
+    `<span class="overdue-panel-title">⚠️ Overdue check-ins (${overdueCheckins.length})</span>`,
+    `<div class="card-stack">${overdueCheckins.map(o => overdueItemHtml(o)).join("")}</div>`
+  );
 
   // unassigned COI approvals panel (shown regardless of which week is selected)
-  const coiPanelEl = document.getElementById("coiPanel");
-  if (unassignedCoi.length === 0) {
-    coiPanelEl.style.display = "none";
-    coiPanelEl.innerHTML = "";
-  } else {
-    coiPanelEl.style.display = "block";
-    coiPanelEl.innerHTML = `
-      <div class="coi-panel-title">📋 Unassigned COI approvals (${unassignedCoi.length})</div>
-      ${unassignedCoi.map(entry => coiUnassignedItemHtml(entry)).join("")}
-    `;
-  }
+  renderCollapsiblePanel(
+    "coiPanel", "coi", unassignedCoi.length,
+    `<span class="coi-panel-title">📋 Unassigned COI approvals (${unassignedCoi.length})</span>`,
+    unassignedCoi.map(entry => coiUnassignedItemHtml(entry)).join("")
+  );
 
   // dismissed COI approvals — reversibly tucked away, not deleted (see "remove" for that)
-  const dismissedCoiPanelEl = document.getElementById("dismissedCoiPanel");
-  if (dismissedCoi.length === 0) {
-    dismissedCoiPanelEl.style.display = "none";
-    dismissedCoiPanelEl.innerHTML = "";
-  } else {
-    dismissedCoiPanelEl.style.display = "block";
-    dismissedCoiPanelEl.innerHTML = `
-      <div class="coi-panel-title">🙈 Dismissed COI approvals (${dismissedCoi.length})</div>
-      ${dismissedCoi.map(entry => dismissedCoiItemHtml(entry)).join("")}
-    `;
-  }
+  renderCollapsiblePanel(
+    "dismissedCoiPanel", "dismissedCoi", dismissedCoi.length,
+    `<span class="coi-panel-title">🙈 Dismissed COI approvals (${dismissedCoi.length})</span>`,
+    dismissedCoi.map(entry => dismissedCoiItemHtml(entry)).join("")
+  );
 
   // hidden orders panel — manually hidden by staff (e.g. lingering despite being
   // closed/deleted in Cheqroom); kept reviewable/reversible rather than discarded
-  const hiddenPanelEl = document.getElementById("hiddenPanel");
-  if (hiddenOrders.length === 0) {
-    hiddenPanelEl.style.display = "none";
-    hiddenPanelEl.innerHTML = "";
-  } else {
-    hiddenPanelEl.style.display = "block";
-    hiddenPanelEl.innerHTML = `
-      <div class="hidden-panel-title">🙈 Hidden orders (${hiddenOrders.length})</div>
-      <div class="card-stack">
-        ${hiddenOrders.map(o => hiddenItemHtml(o)).join("")}
-      </div>
-    `;
-  }
+  renderCollapsiblePanel(
+    "hiddenPanel", "hidden", hiddenOrders.length,
+    `<span class="hidden-panel-title">🙈 Hidden orders (${hiddenOrders.length})</span>`,
+    `<div class="card-stack">${hiddenOrders.map(o => hiddenItemHtml(o)).join("")}</div>`
+  );
 
   // restore whatever was being typed, and put the cursor back where it was
   if (draft) {
