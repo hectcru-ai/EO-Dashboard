@@ -8,13 +8,14 @@
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #F5F4F1;
-    --panel: #EFEDE7;
+    --bg: #F5F6FA;
+    --panel: #ECEDF5;
     --card: #ffffff;
-    --ink: #1A1D21;
-    --muted: #8A8F98;
-    --line: #E7E5DF;
-    --accent: #B23A32;
+    --ink: #1A1B29;
+    --muted: #6B7280;
+    --line: #E3E5EF;
+    --accent: #6C5DD3;
+    --warning: #F2724A;
   }
   * { box-sizing: border-box; }
   body {
@@ -31,21 +32,21 @@
   h1 { font-weight: 600; font-size: 32px; margin: 2px 0 0; }
   .initials-box { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
   .chip { font-family: 'Oswald', sans-serif; background: var(--ink); color: var(--bg); border: none; border-radius: 4px; padding: 6px 12px; font-size: 15px; cursor: pointer; }
-  input#initialsInput { width: 70px; border: 1px solid #D3D1CB; border-radius: 4px; padding: 6px 9px; font-size: 15px; font-family: inherit; }
+  input#initialsInput { width: 70px; border: 1px solid #D4D7E3; border-radius: 4px; padding: 6px 9px; font-size: 15px; font-family: inherit; }
   .btn { border: 1px solid #1A1D21; background: #1A1D21; color: #fff; border-radius: 4px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
   .sync-bar { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 14px; font-size: 14.5px; }
   .sync-text { color: var(--muted); }
-  .sync-text.error { color: var(--accent); }
+  .sync-text.error { color: var(--warning); }
   .sync-note { font-size: 13px; color: #5B6470; background: #EFF3F9; border: 1px solid #D7E2F0; border-radius: 6px; padding: 8px 12px; margin-top: 8px; }
   .week-nav { display: flex; align-items: center; gap: 10px; margin: 14px 0; }
-  .nav-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 7px 12px; cursor: pointer; font-size: 15px; }
+  .nav-btn { border: 1px solid #D4D7E3; background: #fff; border-radius: 4px; padding: 7px 12px; cursor: pointer; font-size: 15px; }
   .week-label { font-family: 'Oswald', sans-serif; font-size: 26px; font-weight: 700; color: var(--accent); min-width: 150px; }
-  .today-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 4px; padding: 7px 12px; font-size: 14px; cursor: pointer; color: var(--muted); }
-  .filter-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 20px; padding: 7px 14px; font-size: 13.5px; cursor: pointer; color: var(--ink); font-weight: 600; }
+  .today-btn { border: 1px solid #D4D7E3; background: #fff; border-radius: 4px; padding: 7px 12px; font-size: 14px; cursor: pointer; color: var(--muted); }
+  .filter-btn { border: 1px solid #D4D7E3; background: #fff; border-radius: 20px; padding: 7px 14px; font-size: 13.5px; cursor: pointer; color: var(--ink); font-weight: 600; }
   .filter-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
   .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
   .day-col { background: var(--panel); border-radius: 8px; padding: 12px; min-height: 200px; flex: 1 1 220px; min-width: 220px; scroll-snap-align: start; }
-  .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #DCDAD2; }
+  .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #E3E5EF; }
   .day-name { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 26px; }
   .day-date { font-size: 15px; color: var(--muted); }
   .day-count-split { display: flex; gap: 5px; font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 700; }
@@ -58,10 +59,19 @@
   .todo-item input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
   .todo-text { flex: 1; word-break: break-word; white-space: pre-wrap; }
   .todo-item.done .todo-text { text-decoration: line-through; color: #A6A9AC; }
-  .todo-del { border: none; background: none; color: #B23A32; cursor: pointer; font-size: 13px; padding: 0 0 0 4px; flex-shrink: 0; }
+  .todo-del { border: none; background: none; color: var(--warning); cursor: pointer; font-size: 13px; padding: 0 0 0 4px; flex-shrink: 0; }
   .todo-add { display: flex; gap: 5px; margin-top: 6px; }
   .todo-add input { flex: 1; min-width: 0; border: 1px solid #C9C1AD; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; background: #fff; }
   .todo-add button { border: none; background: #8A6216; color: #fff; border-radius: 4px; padding: 5px 11px; cursor: pointer; font-size: 15px; font-weight: 700; flex-shrink: 0; }
+  .card-notes { background: rgba(255,255,255,0.6); border: 1px solid rgba(242,114,74,0.35); border-radius: 5px; padding: 7px 8px; margin-top: 6px; }
+  .note-item { display: flex; align-items: flex-start; gap: 6px; font-size: 13.5px; padding: 2px 0; color: var(--ink); }
+  .note-item input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
+  .note-item-text { flex: 1; word-break: break-word; white-space: pre-wrap; }
+  .note-item.done .note-item-text { text-decoration: line-through; color: var(--muted); }
+  .note-item-del { border: none; background: none; color: var(--warning); cursor: pointer; font-size: 12px; padding: 0 0 0 4px; flex-shrink: 0; }
+  .note-add { display: flex; gap: 5px; margin-top: 4px; }
+  .note-add input { flex: 1; min-width: 0; border: 1px solid #F0C7B5; border-radius: 4px; padding: 4px 6px; font-size: 12.5px; font-family: inherit; background: #fff; }
+  .note-add button { border: none; background: var(--warning); color: #fff; border-radius: 4px; padding: 4px 9px; cursor: pointer; font-size: 14px; font-weight: 700; flex-shrink: 0; }
   .empty-day { font-size: 14.5px; color: #A6A9AC; font-style: italic; padding: 10px 2px; }
   .card { border-radius: 6px; padding: 11px 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
   .card.checkout { background: #DCE5F7; border: 1px solid #B9CBEE; }
@@ -79,7 +89,7 @@
   .approval-badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 8px; margin-top: 5px; }
   .email-approval-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; }
   .email-approval-badge.approved { color: #1E7A75; background: #E4F3F1; }
-  .email-approval-badge.denied { color: #B23A32; background: #FBEAE8; }
+  .email-approval-badge.denied { color: var(--warning); background: #FDEAE2; }
   .permit-waived-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; color: #1E7A75; background: #E4F3F1; }
   .coi-card-badge { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
   .coi-unassign { border: none; background: none; color: inherit; opacity: 0.65; cursor: pointer; font-size: 11px; text-decoration: underline; padding: 0; font-weight: 500; }
@@ -94,16 +104,15 @@
   .coi-item-subject { font-size: 12px; color: var(--muted); margin-top: 4px; word-break: break-word; }
   .coi-item-badge { font-weight: 700; border-radius: 4px; padding: 2px 8px; font-size: 12px; white-space: nowrap; }
   .coi-item-badge.approved { color: #1E7A75; background: #E4F3F1; }
-  .coi-item-badge.denied { color: #B23A32; background: #FBEAE8; }
+  .coi-item-badge.denied { color: var(--warning); background: #FDEAE2; }
   .coi-item-meta { color: var(--muted); flex: 1; min-width: 160px; }
-  .coi-assign-select { border: 1px solid #D3D1CB; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; max-width: 100%; }
-  .overdue-panel { background: var(--card); border: 1px solid var(--accent); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
-  .overdue-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; color: var(--accent); }
+  .coi-assign-select { border: 1px solid #D4D7E3; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; max-width: 100%; }
+  .overdue-panel { background: var(--card); border: 1px solid var(--warning); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
+  .overdue-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; color: var(--warning); }
   .overdue-item { margin-bottom: 10px; }
   .overdue-item:last-child { margin-bottom: 0; }
-  .overdue-days { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--accent); margin-bottom: 4px; }
+  .overdue-days { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--warning); margin-bottom: 4px; }
   .card-meta { display: flex; align-items: center; gap: 4px; font-size: 14px; color: #3F444B; margin-top: 5px; }
-  .card-note { font-size: 13.5px; color: var(--accent); margin-top: 6px; background: rgba(255,255,255,0.75); border-radius: 4px; padding: 5px 7px; white-space: pre-wrap; }
   select.status-select { width: 100%; margin-top: 9px; border: 1px solid rgba(0,0,0,0.15); border-radius: 4px; padding: 7px 8px; font-size: 14px; font-weight: 600; font-family: inherit; cursor: pointer; background: #fff; color: var(--ink); }
   .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 7px; font-size: 11.5px; color: #4B4F55; }
   .edit-link { border: none; background: none; color: #2C4A8C; cursor: pointer; font-size: 13px; padding: 0; font-weight: 600; }
@@ -112,15 +121,7 @@
   .hidden-panel { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 10px; }
   .hidden-panel-title { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 15px; color: var(--muted); }
   .hidden-item-label { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 12.5px; color: var(--muted); margin-bottom: 4px; }
-  .modal-overlay { position: fixed; inset: 0; background: rgba(26,29,33,0.45); display: none; align-items: center; justify-content: center; padding: 16px; z-index: 50; }
-  .modal-overlay.open { display: flex; }
-  .modal { background: #fff; border-radius: 8px; padding: 20px; width: 100%; max-width: 380px; }
-  .modal-title { font-family: 'Oswald', sans-serif; font-weight: 600; font-size: 18px; }
-  .modal-sub { font-size: 12.5px; color: var(--muted); margin: 4px 0 10px; }
-  textarea#noteInput { width: 100%; min-height: 70px; border: 1px solid #D3D1CB; border-radius: 5px; padding: 8px 9px; font-size: 13.5px; font-family: inherit; resize: vertical; }
-  .modal-footer { display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px; }
-  .cancel-btn { border: 1px solid #D3D1CB; background: #fff; border-radius: 5px; padding: 8px 14px; font-size: 13px; cursor: pointer; }
-  .save-btn { border: none; background: var(--ink); color: #fff; border-radius: 5px; padding: 8px 16px; font-size: 13px; cursor: pointer; font-weight: 600; }
+
 </style>
 </head>
 <body>
@@ -159,18 +160,6 @@
   <div class="board" id="board"></div>
 
   <div class="overdue-panel" id="overduePanel" style="display:none;"></div>
-
-  <div class="modal-overlay" id="noteModal">
-    <div class="modal">
-      <div class="modal-title" id="noteModalName"></div>
-      <div class="modal-sub" id="noteModalMeta"></div>
-      <textarea id="noteInput" placeholder="Optional"></textarea>
-      <div class="modal-footer">
-        <button class="cancel-btn" onclick="closeNoteModal()">Cancel</button>
-        <button class="save-btn" onclick="saveNote()">Save</button>
-      </div>
-    </div>
-  </div>
 
 <script>
 // =============================================================================
@@ -214,7 +203,6 @@ let coiApprovals = {}; // { [pushId]: {name, dateIso, status, subject, receivedA
                         // reservation number, so each entry starts unassigned and staff link it to an order by hand in the UI
 let weekMonday = getMonday(new Date());
 let professorOnly = false;
-let editingId = null;
 
 // =============================================================================
 // Date helpers
@@ -391,7 +379,7 @@ function showFirebaseError(message) {
   if (!el) {
     el = document.createElement("div");
     el.id = "firebaseError";
-    el.style.cssText = "background:#FBEAE8;color:#B23A32;border:1px solid #E9C7C3;border-radius:6px;padding:8px 12px;margin-top:10px;font-size:12.5px;";
+    el.style.cssText = "background:#FDEAE2;color:#F2724A;border:1px solid #F5C9B5;border-radius:6px;padding:8px 12px;margin-top:10px;font-size:12.5px;";
     document.querySelector(".sync-bar").insertAdjacentElement("afterend", el);
   }
   el.textContent = message;
@@ -602,6 +590,52 @@ function todoKeydown(event, dateIso) {
 }
 
 // =============================================================================
+// Per-card notes — same checklist pattern as the All-Staff priorities above,
+// but keyed by order (staffKey) instead of date, and stored under staffData.
+// A legacy single-string `note` (from before this feature) is folded in as one
+// unchecked item at render time and cleared once the list is touched again.
+// =============================================================================
+function getNoteItemsWithLegacy(orderKey) {
+  const existing = staffData[orderKey] || {};
+  if (existing.noteItems && existing.noteItems.length) return existing.noteItems;
+  if (existing.note) {
+    // A note saved before this checklist existed — show it as one unchecked
+    // item; it gets converted for real the moment any action touches it.
+    return [{ id: "legacy-note", text: existing.note, done: false, addedBy: existing.updatedBy || "—", addedAt: existing.updatedAt || Date.now() }];
+  }
+  return [];
+}
+
+function addNoteItem(orderKey) {
+  const inputEl = document.getElementById(`note-input-${orderKey}`);
+  const text = inputEl.value.trim();
+  if (!text) return;
+  const items = [...getNoteItemsWithLegacy(orderKey)];
+  items.push({
+    id: "n" + Date.now() + Math.random().toString(36).slice(2, 7),
+    text,
+    done: false,
+    addedBy: getInitials() || "—",
+    addedAt: Date.now(),
+  });
+  updateStaffField(orderKey, { noteItems: items, note: null }); // clear legacy string once items exist
+}
+
+function toggleNoteItem(orderKey, id) {
+  const items = getNoteItemsWithLegacy(orderKey).map(t => t.id === id ? { ...t, done: !t.done } : t);
+  updateStaffField(orderKey, { noteItems: items, note: null });
+}
+
+function deleteNoteItem(orderKey, id) {
+  const items = getNoteItemsWithLegacy(orderKey).filter(t => t.id !== id);
+  updateStaffField(orderKey, { noteItems: items, note: null });
+}
+
+function noteItemKeydown(event, orderKey) {
+  if (event.key === "Enter") addNoteItem(orderKey);
+}
+
+// =============================================================================
 // Rendering
 // =============================================================================
 function getWeekDays() {
@@ -617,12 +651,12 @@ function render() {
     btn.textContent = professorOnly ? "🎓 Showing professors only" : "🎓 Professor orders only";
   }
 
-  // If the user is mid-typing into a "add a priority" box when a background
-  // refresh fires, capture it so we can restore it after re-rendering —
-  // otherwise a full re-render replaces that input with a blank one.
+  // If the user is mid-typing into an "add a priority" or "add a note" box when
+  // a background refresh fires, capture it so we can restore it after
+  // re-rendering — otherwise a full re-render replaces that input with a blank one.
   const active = document.activeElement;
   let draft = null;
-  if (active && active.id && active.id.startsWith("todo-input-")) {
+  if (active && active.id && (active.id.startsWith("todo-input-") || active.id.startsWith("note-input-"))) {
     draft = { id: active.id, value: active.value, selectionStart: active.selectionStart, selectionEnd: active.selectionEnd };
   }
 
@@ -658,7 +692,7 @@ function render() {
     const coiApproval = coiByOrderKey[key] || null;
     const rawStatus = staff.status || "not_started";
     const staffStatus = LEGACY_STATUS_MAP[rawStatus] || rawStatus;
-    return { ...o, staffStatus, note: staff.note || "",
+    return { ...o, staffStatus, note: staff.note || "", noteItems: getNoteItemsWithLegacy(key),
              updatedBy: staff.updatedBy || "", updatedAt: staff.updatedAt || null,
              emailApproval, coiApproval, hidden: !!staff.hidden };
   });
@@ -700,7 +734,7 @@ function render() {
       <div class="day-col" id="daycol-${i}">
         <div class="day-head">
           <div>
-            <div class="day-name" style="color:${isToday?'#B23A32':'#1A1D21'}">${d.name}</div>
+            <div class="day-name" style="color:${isToday?'var(--accent)':'var(--ink)'}">${d.name}</div>
             <div class="day-date">${formatShort(d.date)}</div>
           </div>
           <div class="day-count-split">
@@ -774,6 +808,24 @@ function todoCardHtml(dateIso) {
     </div>`;
 }
 
+function noteItemsHtml(o) {
+  const key = staffKey(o);
+  const items = o.noteItems || [];
+  return `
+    <div class="card-notes">
+      ${items.map(t => `
+        <div class="note-item ${t.done ? "done" : ""}">
+          <input type="checkbox" ${t.done ? "checked" : ""} onchange="toggleNoteItem('${key}','${t.id}')" />
+          <span class="note-item-text">${escapeHtml(t.text)}</span>
+          <button class="note-item-del" onclick="deleteNoteItem('${key}','${t.id}')" title="Remove">✕</button>
+        </div>`).join("")}
+      <div class="note-add">
+        <input type="text" id="note-input-${key}" placeholder="Add a note…" onkeydown="noteItemKeydown(event, '${key}')" />
+        <button onclick="addNoteItem('${key}')">+</button>
+      </div>
+    </div>`;
+}
+
 function cardHtml(o) {
   const isCheckin = o.action === "checkin";
   const isProfessor = (o.gradeLevel || "").toUpperCase().includes("PROFESSOR");
@@ -792,18 +844,15 @@ function cardHtml(o) {
       ${coiApprovalBadgeHtml(o.coiApproval)}
       ${o.time ? `<div class="card-meta">🕐 ${escapeHtml(o.time)}</div>` : ""}
       ${o.items ? `<div class="card-meta">📦 ${escapeHtml(o.items)}</div>` : ""}
-      ${o.note ? `<div class="card-note">⚠ ${escapeHtml(o.note)}</div>` : ""}
+      ${noteItemsHtml(o)}
       <select class="status-select"
               onchange="updateStaffField('${staffKey(o)}', {status: this.value})">
         ${STATUSES.map(st => `<option value="${st.id}" ${st.id===o.staffStatus?"selected":""}>${st.label}</option>`).join("")}
       </select>
       <div class="card-footer">
-        <div class="card-footer-links">
-          <button class="edit-link" onclick="openNoteModal('${staffKey(o)}')">Add note</button>
-          ${o.hidden
-            ? `<button class="edit-link hide-link" onclick="unhideOrder('${staffKey(o)}')">Unhide</button>`
-            : `<button class="edit-link hide-link" onclick="hideOrder('${staffKey(o)}')">Hide</button>`}
-        </div>
+        ${o.hidden
+          ? `<button class="edit-link hide-link" onclick="unhideOrder('${staffKey(o)}')">Unhide</button>`
+          : `<button class="edit-link hide-link" onclick="hideOrder('${staffKey(o)}')">Hide</button>`}
         <span>${o.updatedBy ? o.updatedBy + " · " : ""}${o.updatedAt ? relTime(o.updatedAt) : ""}</span>
       </div>
     </div>`;
@@ -899,8 +948,8 @@ function dismissedCoiItemHtml(entry) {
 function approvalBadgeStyle(label) {
   if (!label) return null;
   const l = label.toLowerCase();
-  if (l.includes("not approved") || l.includes("denied")) return { color: "#B23A32", bg: "#FBEAE8" };
-  if (l.includes("financial fine")) return { color: "#B23A32", bg: "#FBEAE8" };
+  if (l.includes("not approved") || l.includes("denied")) return { color: "#F2724A", bg: "#FDEAE2" };
+  if (l.includes("financial fine")) return { color: "#F2724A", bg: "#FDEAE2" };
   if (l === "approved") return { color: "#1E7A75", bg: "#E4F3F1" };
   if (l.includes("pending")) return { color: "#B8862E", bg: "#FBF2E1" };
   if (l.includes("training")) return { color: "#5B6470", bg: "#EAECEE" };
@@ -914,27 +963,6 @@ function escapeHtml(str) {
 }
 
 // =============================================================================
-// Note modal
-// =============================================================================
-function openNoteModal(orderKey) {
-  editingId = orderKey;
-  const order = feedOrders.find(o => staffKey(o) === orderKey);
-  const staff = staffData[orderKey] || {};
-  document.getElementById("noteModalName").textContent = order?.name || "";
-  document.getElementById("noteModalMeta").textContent = `${order?.items || ""} ${order?.time ? "· " + order.time : ""}`;
-  document.getElementById("noteInput").value = staff.note || "";
-  document.getElementById("noteModal").classList.add("open");
-}
-function closeNoteModal() {
-  document.getElementById("noteModal").classList.remove("open");
-  editingId = null;
-}
-function saveNote() {
-  const note = document.getElementById("noteInput").value;
-  updateStaffField(editingId, { note });
-  closeNoteModal();
-}
-
 // =============================================================================
 // Week nav
 // =============================================================================
