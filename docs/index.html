@@ -15,7 +15,16 @@
     --muted: #6B7280;
     --line: #E3E5EF;
     --accent: #6C5DD3;
+    --accent-light: #A996FF;
+    --header-bg: #14122A;
+    --day-muted: #9A93BE;
     --warning: #F2724A;
+    --teal: #2DD4BF;
+    --teal-strong: #0D9488;
+    --checkout-bg: #ECE7FC;
+    --checkout-border: #CDBEF2;
+    --checkin-bg: #FDE7DC;
+    --checkin-border: #F6C0A0;
   }
   * { box-sizing: border-box; }
   body {
@@ -27,13 +36,13 @@
     font-size: 16px;
   }
   h1, .display { font-family: 'Oswald', sans-serif; }
-  .header { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 12px; }
-  .kicker { font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 0.06em; color: var(--accent); font-weight: 600; }
-  h1 { font-weight: 600; font-size: 32px; margin: 2px 0 0; }
-  .initials-box { display: flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
-  .chip { font-family: 'Oswald', sans-serif; background: var(--ink); color: var(--bg); border: none; border-radius: 4px; padding: 6px 12px; font-size: 15px; cursor: pointer; }
+  .header { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; background: var(--header-bg); color: #fff; padding: 20px 24px; border-radius: 10px; }
+  .kicker { font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 0.06em; color: var(--accent-light); font-weight: 600; }
+  h1 { font-weight: 600; font-size: 32px; margin: 2px 0 0; color: #fff; }
+  .initials-box { display: flex; align-items: center; gap: 8px; font-size: 14px; color: #C7C2DC; }
+  .chip { font-family: 'Oswald', sans-serif; background: var(--accent); color: #fff; border: none; border-radius: 4px; padding: 6px 12px; font-size: 15px; cursor: pointer; }
   input#initialsInput { width: 70px; border: 1px solid #D4D7E3; border-radius: 4px; padding: 6px 9px; font-size: 15px; font-family: inherit; }
-  .btn { border: 1px solid #1A1D21; background: #1A1D21; color: #fff; border-radius: 4px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
+  .btn { border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 4px; padding: 6px 12px; font-size: 14px; cursor: pointer; }
   .sync-bar { display: flex; align-items: center; justify-content: space-between; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 10px 14px; margin-top: 14px; font-size: 14.5px; }
   .sync-text { color: var(--muted); }
   .sync-text.error { color: var(--warning); }
@@ -45,24 +54,24 @@
   .filter-btn { border: 1px solid #D4D7E3; background: #fff; border-radius: 20px; padding: 7px 14px; font-size: 13.5px; cursor: pointer; color: var(--ink); font-weight: 600; }
   .filter-btn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
   .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 8px; }
-  .day-col { background: var(--panel); border-radius: 8px; padding: 12px; min-height: 200px; flex: 1 1 220px; min-width: 220px; scroll-snap-align: start; }
-  .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid #E3E5EF; }
+  .day-col { background: var(--header-bg); border-radius: 8px; padding: 12px; min-height: 200px; flex: 1 1 220px; min-width: 220px; scroll-snap-align: start; }
+  .day-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; padding-bottom: 10px; border-bottom: 1px solid rgba(255,255,255,0.14); }
   .day-name { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 26px; }
-  .day-date { font-size: 15px; color: var(--muted); }
+  .day-date { font-size: 15px; color: var(--day-muted); }
   .day-count-split { display: flex; gap: 5px; font-family: 'Oswald', sans-serif; font-size: 19px; font-weight: 700; }
-  .split-out { color: #3D5A9E; background: #EBEFF9; border-radius: 10px; padding: 3px 10px; }
-  .split-in { color: #B8862E; background: #FBF2E1; border-radius: 10px; padding: 3px 10px; }
+  .split-out { color: var(--accent); background: var(--checkout-bg); border-radius: 10px; padding: 3px 10px; }
+  .split-in { color: var(--warning); background: var(--checkin-bg); border-radius: 10px; padding: 3px 10px; }
   .card-stack { display: flex; flex-direction: column; gap: 8px; }
-  .todo-card { background: none; border: 1.5px dashed #B39A5E; border-radius: 6px; padding: 9px 10px; margin-bottom: 10px; }
-  .todo-head { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 13.5px; color: #8A6216; margin-bottom: 6px; letter-spacing: 0.02em; }
-  .todo-item { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; padding: 3px 0; color: var(--ink); }
+  .todo-card { background: none; border: 1.5px dashed var(--teal); border-radius: 6px; padding: 9px 10px; margin-bottom: 10px; }
+  .todo-head { font-family: 'Oswald', sans-serif; font-weight: 700; font-size: 13.5px; color: var(--teal); margin-bottom: 6px; letter-spacing: 0.02em; }
+  .todo-item { display: flex; align-items: flex-start; gap: 6px; font-size: 14px; padding: 3px 0; color: var(--teal); }
   .todo-item input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
   .todo-text { flex: 1; word-break: break-word; white-space: pre-wrap; }
-  .todo-item.done .todo-text { text-decoration: line-through; color: #A6A9AC; }
+  .todo-item.done .todo-text { text-decoration: line-through; color: #6B7A78; }
   .todo-del { border: none; background: none; color: var(--warning); cursor: pointer; font-size: 13px; padding: 0 0 0 4px; flex-shrink: 0; }
   .todo-add { display: flex; gap: 5px; margin-top: 6px; }
   .todo-add input { flex: 1; min-width: 0; border: 1px solid #C9C1AD; border-radius: 4px; padding: 5px 7px; font-size: 13px; font-family: inherit; background: #fff; }
-  .todo-add button { border: none; background: #8A6216; color: #fff; border-radius: 4px; padding: 5px 11px; cursor: pointer; font-size: 15px; font-weight: 700; flex-shrink: 0; }
+  .todo-add button { border: none; background: var(--teal-strong); color: #fff; border-radius: 4px; padding: 5px 11px; cursor: pointer; font-size: 15px; font-weight: 700; flex-shrink: 0; }
   .card-notes { background: rgba(255,255,255,0.6); border: 1px solid rgba(242,114,74,0.35); border-radius: 5px; padding: 7px 8px; margin-top: 6px; }
   .note-item { display: flex; align-items: flex-start; gap: 6px; font-size: 13.5px; padding: 2px 0; color: var(--ink); }
   .note-item input[type=checkbox] { margin-top: 3px; cursor: pointer; flex-shrink: 0; }
@@ -72,10 +81,10 @@
   .note-add { display: flex; gap: 5px; margin-top: 4px; }
   .note-add input { flex: 1; min-width: 0; border: 1px solid #F0C7B5; border-radius: 4px; padding: 4px 6px; font-size: 12.5px; font-family: inherit; background: #fff; }
   .note-add button { border: none; background: var(--warning); color: #fff; border-radius: 4px; padding: 4px 9px; cursor: pointer; font-size: 14px; font-weight: 700; flex-shrink: 0; }
-  .empty-day { font-size: 14.5px; color: #A6A9AC; font-style: italic; padding: 10px 2px; }
+  .empty-day { font-size: 14.5px; color: #726C96; font-style: italic; padding: 10px 2px; }
   .card { border-radius: 6px; padding: 11px 12px; box-shadow: 0 1px 2px rgba(0,0,0,0.04); }
-  .card.checkout { background: #DCE5F7; border: 1px solid #B9CBEE; }
-  .card.checkin { background: #FBE9C8; border: 1px solid #F0D093; }
+  .card.checkout { background: var(--checkout-bg); border: 1px solid var(--checkout-border); }
+  .card.checkin { background: var(--checkin-bg); border: 1px solid var(--checkin-border); }
   .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 6px; }
   .card-name { display: flex; align-items: center; gap: 5px; font-size: 15.5px; font-weight: 600; }
   .cheqroom-tag { font-size: 11px; color: var(--muted); background: rgba(255,255,255,0.7); border: 1px solid rgba(0,0,0,0.08); border-radius: 3px; padding: 2px 6px; white-space: nowrap; font-weight: 600; }
@@ -83,8 +92,8 @@
   .grade-badge.professor { background: var(--accent); color: #fff; border-color: var(--accent); }
   .card.checkout.priority, .card.checkin.priority { border-left: 5px solid var(--accent); padding-left: 9px; }
   .type-tag { font-family: 'Oswald', sans-serif; font-size: 11.5px; font-weight: 700; border-radius: 4px; padding: 2px 7px; white-space: nowrap; flex-shrink: 0; }
-  .type-tag.out { color: #3D5A9E; background: rgba(255,255,255,0.8); border: 1px solid #B9CBEE; }
-  .type-tag.in { color: #B8862E; background: rgba(255,255,255,0.8); border: 1px solid #F0D093; }
+  .type-tag.out { color: var(--accent); background: rgba(255,255,255,0.8); border: 1px solid var(--checkout-border); }
+  .type-tag.in { color: var(--warning); background: rgba(255,255,255,0.8); border: 1px solid var(--checkin-border); }
   .order-name { font-size: 12.5px; font-style: italic; color: #4B4F55; margin-top: 3px; }
   .approval-badge { display: inline-block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 2px 8px; margin-top: 5px; }
   .email-approval-badge { display: block; font-size: 12px; font-weight: 700; border-radius: 4px; padding: 3px 8px; margin-top: 5px; }
@@ -734,7 +743,7 @@ function render() {
       <div class="day-col" id="daycol-${i}">
         <div class="day-head">
           <div>
-            <div class="day-name" style="color:${isToday?'var(--accent)':'var(--ink)'}">${d.name}</div>
+            <div class="day-name" style="color:${isToday?'var(--accent-light)':'#fff'}">${d.name}</div>
             <div class="day-date">${formatShort(d.date)}</div>
           </div>
           <div class="day-count-split">
